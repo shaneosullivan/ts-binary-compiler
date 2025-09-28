@@ -1,0 +1,21 @@
+{
+  "name": "ts-binary-compiler",
+  "version": "1.0.0",
+  "description": "TypeScript compiler with configurable output",
+  "main": "main.ts",
+  "scripts": {
+    "build": "./build.sh",
+    "clean": "rm -f main.js main main.pkg",
+    "test": "node main.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
