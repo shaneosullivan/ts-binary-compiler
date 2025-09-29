@@ -22,7 +22,7 @@ const originalSyncFetch = (globalThis as any).fetch;
           ...init,
         };
 
-  // Mimic async behavior using setTimeout
+  // Use setTimeout to simulate async behavior - now supported in QuickJS
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       try {
@@ -44,7 +44,17 @@ const originalSyncFetch = (globalThis as any).fetch;
             return Promise.resolve(syncResponse.text());
           },
           json(): Promise<any> {
-            return Promise.resolve(syncResponse.json());
+            // Get the text first to check if it's empty
+            const text = syncResponse.text();
+            if (!text || !text.trim()) {
+              return Promise.resolve(null);
+            }
+            try {
+              return Promise.resolve(syncResponse.json());
+            } catch (error) {
+              // Handle empty or invalid JSON responses
+              return Promise.reject(new Error("Response body is not valid JSON"));
+            }
           },
           arrayBuffer(): Promise<ArrayBuffer> {
             const text = syncResponse.text();

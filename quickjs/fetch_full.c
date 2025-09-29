@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
+#include <unistd.h>
+#include "timers.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -13,6 +15,7 @@ struct HttpResponse {
     long status_code;
     char* status_text;
 };
+
 
 // Write callback for response body
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, struct HttpResponse* response) {
@@ -92,7 +95,8 @@ static JSValue response_json(JSContext* ctx, JSValueConst this_val, int argc, JS
             result = JS_ThrowSyntaxError(ctx, "Invalid JSON in response");
         }
     } else {
-        result = JS_ThrowSyntaxError(ctx, "Empty response body");
+        // For empty responses (like 204 No Content), return null instead of throwing error
+        result = JS_NULL;
     }
     
     if (data) JS_FreeCString(ctx, data);
@@ -134,6 +138,9 @@ static JSValue js_console_log(JSContext* ctx, JSValueConst this_val, int argc, J
     return JS_UNDEFINED;
 }
 
+
+
+
 // Main fetch implementation
 static JSValue js_fetch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
     (void)this_val;
@@ -145,6 +152,7 @@ static JSValue js_fetch(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     if (!url) {
         return JS_EXCEPTION;
     }
+    
     
     // Parse options object
     const char* method = "GET";
@@ -269,7 +277,9 @@ static JSValue js_fetch(JSContext* ctx, JSValueConst this_val, int argc, JSValue
         if (response.data) free(response.data);
         if (response.headers) free(response.headers);
         if (response.status_text) free(response.status_text);
-        return JS_ThrowInternalError(ctx, "Fetch failed: %s", curl_easy_strerror(res));
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "Fetch failed: %s", curl_easy_strerror(res));
+        return JS_ThrowInternalError(ctx, "%s", error_msg);
     }
     
     // Create response object
@@ -337,9 +347,20 @@ int main(int argc, char** argv) {
         return 1;
     }
     
+    // Initialize timer system
+    timers_init();
+    
     // Add fetch and console to global object
     JSValue global = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global, "fetch", JS_NewCFunction(ctx, js_fetch, "fetch", 2));
+    
+    // Add setTimeout and clearTimeout functions
+    JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_setTimeout, "setTimeout", 2));
+    JS_SetPropertyStr(ctx, global, "clearTimeout", JS_NewCFunction(ctx, js_clearTimeout, "clearTimeout", 1));
+    
+    // Add setInterval and clearInterval functions
+    JS_SetPropertyStr(ctx, global, "setInterval", JS_NewCFunction(ctx, js_setInterval, "setInterval", 2));
+    JS_SetPropertyStr(ctx, global, "clearInterval", JS_NewCFunction(ctx, js_clearInterval, "clearInterval", 1));
     
     // Add console object with log method
     JSValue console_obj = JS_NewObject(ctx);
@@ -360,6 +381,43 @@ int main(int argc, char** argv) {
     }
     
     JS_FreeValue(ctx, result);
+    
+    // Run timer event loop with job queue execution
+    while (timers_has_active()) {
+        timers_execute();
+        
+        // Execute ALL pending jobs (promises) - keep going until none are left
+        JSContext* ctx_ptr = NULL;
+        while (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx_ptr) > 0) {
+            // Keep processing jobs until none are left
+        }
+        
+        // Check for any job execution errors
+        if (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx_ptr) < 0) {
+            JSValue exception = JS_GetException(ctx_ptr ? ctx_ptr : ctx);
+            const char* error = JS_ToCString(ctx, exception);
+            fprintf(stderr, "Promise rejection: %s\n", error ? error : "Unknown error");
+            if (error) JS_FreeCString(ctx, error);
+            JS_FreeValue(ctx, exception);
+        }
+        
+        if (timers_has_active()) {
+            usleep(1000); // Sleep for 1ms to prevent busy waiting
+        }
+    }
+    
+    // Continue executing any remaining jobs even after timers are done
+    JSContext* ctx_ptr = NULL;
+    while (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx_ptr) > 0) {
+        // Keep executing jobs until none are pending
+    }
+    
+    // Clean up any remaining timers
+    timers_cleanup(ctx);
+    
+    // Run garbage collection before freeing context
+    JS_RunGC(JS_GetRuntime(ctx));
+    
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
     curl_global_cleanup();

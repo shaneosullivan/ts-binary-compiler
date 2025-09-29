@@ -2,7 +2,10 @@
   "name": "ts-binary-compiler",
   "version": "1.0.0",
   "description": "TypeScript compiler with configurable output",
-  "main": "main.ts",
+  "main": "index.js",
+  "bin": {
+    "tsbc": "./index.js"
+  },
   "scripts": {
     "build": "./build.sh",
     "clean": "rm -f main.js main main.pkg",

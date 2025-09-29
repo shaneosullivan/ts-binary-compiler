@@ -135,7 +135,7 @@ EOF
 # Build the binary
 echo "⚙️  Compiling QuickJS + libcurl binary..."
 gcc -O2 -Wall -Wextra -Wno-unused-parameter -I/opt/homebrew/include -o "$FULL_OUTPUT_PATH" \
-    fetch_full.c "$TEMP_DIR/generated/main_bundle.c" \
+    fetch_full.c timers.c "$TEMP_DIR/generated/main_bundle.c" \
     -L/opt/homebrew/Cellar/quickjs/2025-09-13-2/lib/quickjs \
     -lquickjs -lcurl
 
