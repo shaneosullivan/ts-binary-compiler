@@ -48,6 +48,12 @@
       "methods": ["text", "arrayBuffer", "slice"],
       "properties": ["size", "type"]
     },
+    "FormData": {
+      "description": "Multipart form data for file uploads",
+      "type": "class",
+      "methods": ["append", "delete", "get", "has", "set"],
+      "notes": "Supports both string values and Blob/File objects"
+    },
     "Response": {
       "description": "HTTP Response (from fetch)",
       "type": "class",

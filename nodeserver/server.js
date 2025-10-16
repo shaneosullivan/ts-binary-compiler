@@ -77,9 +77,11 @@ app.get('/', (req, res) => {
             'OPTIONS /test': 'OPTIONS request test',
             'GET /test/headers': 'Header validation test',
             'POST /test/json': 'JSON validation test',
-            'POST /test/form': 'Form data test',
+            'POST /test/form': 'Form data test (no files)',
             'POST /test/binary': 'Binary data test',
-            'POST /test/upload': 'File upload test',
+            'POST /test/upload': 'File upload test (single file)',
+            'POST /test/multi-upload': 'Multiple file upload test',
+            'POST /test/formdata-mixed': 'FormData with mixed fields and files',
             'GET /test/status/:code': 'Custom status code test',
             'GET /test/delay/:ms': 'Delayed response test',
             'POST /test/validate': 'Comprehensive validation test',
@@ -167,14 +169,63 @@ app.post('/test/binary', (req, res) => {
 // File upload endpoint
 app.post('/test/upload', upload.single('file'), (req, res) => {
     const hasFile = req.file && req.file.buffer;
-    
-    res.json(createResponse(req, hasFile, 
+
+    res.json(createResponse(req, hasFile,
         hasFile ? `File uploaded: ${req.file.originalname} (${req.file.size} bytes)` : 'No file uploaded',
-        hasFile ? { 
-            filename: req.file.originalname, 
-            size: req.file.size, 
-            mimetype: req.file.mimetype 
+        hasFile ? {
+            filename: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            content: req.file.buffer.toString('utf-8').substring(0, 100),
+            formFields: req.body
         } : null
+    ));
+});
+
+// Multi-file upload endpoint
+app.post('/test/multi-upload', upload.array('files', 10), (req, res) => {
+    const hasFiles = req.files && req.files.length > 0;
+
+    res.json(createResponse(req, hasFiles,
+        hasFiles ? `${req.files.length} file(s) uploaded` : 'No files uploaded',
+        hasFiles ? {
+            files: req.files.map(f => ({
+                filename: f.originalname,
+                size: f.size,
+                mimetype: f.mimetype
+            })),
+            formFields: req.body
+        } : null
+    ));
+});
+
+// FormData with mixed fields and files
+app.post('/test/formdata-mixed', upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'file1', maxCount: 1 },
+    { name: 'file2', maxCount: 1 }
+]), (req, res) => {
+    const fileCount = req.files ? Object.keys(req.files).reduce((count, key) => count + req.files[key].length, 0) : 0;
+    const fieldCount = Object.keys(req.body).length;
+
+    const filesData = {};
+    if (req.files) {
+        for (const [fieldName, files] of Object.entries(req.files)) {
+            filesData[fieldName] = files.map(f => ({
+                filename: f.originalname,
+                size: f.size,
+                mimetype: f.mimetype,
+                content: f.buffer.toString('utf-8').substring(0, 50)
+            }));
+        }
+    }
+
+    res.json(createResponse(req, true,
+        `FormData received: ${fieldCount} field(s), ${fileCount} file(s)`,
+        {
+            fields: req.body,
+            files: filesData
+        }
     ));
 });
 

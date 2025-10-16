@@ -350,3 +350,20 @@ JSValue blob_create(JSContext* ctx, const uint8_t* data, size_t size, const char
     JS_SetOpaque(obj, blob);
     return obj;
 }
+
+// Check if a value is a Blob
+int blob_is_blob(JSContext* ctx, JSValueConst val) {
+    return JS_GetOpaque(val, js_blob_class_id) != NULL;
+}
+
+// Get blob data
+const uint8_t* blob_get_data(JSContext* ctx, JSValueConst val, size_t* out_size) {
+    BlobData* blob = JS_GetOpaque(val, js_blob_class_id);
+    if (!blob) {
+        if (out_size) *out_size = 0;
+        return NULL;
+    }
+
+    if (out_size) *out_size = blob->size;
+    return blob->data;
+}

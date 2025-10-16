@@ -17,6 +17,13 @@ A powerful tool for compiling TypeScript/JavaScript files into standalone binari
 - Proper MIME type handling
 - Integration with Fetch API responses
 
+📋 **FormData API**
+- Full FormData implementation for file uploads
+- Methods: `append()`, `get()`, `set()`, `delete()`, `has()`
+- Supports both string values and Blob/File objects
+- Automatic multipart/form-data encoding with boundaries
+- Seamless integration with Fetch API
+
 ⏱️ **Timer Functions**
 - `setTimeout` / `clearTimeout`
 - `setInterval` / `clearInterval`
@@ -109,6 +116,7 @@ See [supported-features.json](supported-features.json) for the complete list of 
 
 - **Fetch API** - Full HTTP client (GET, POST, PUT, DELETE, etc.)
 - **Blob API** - Binary data handling
+- **FormData API** - Multipart form data for file uploads
 - **Timers** - setTimeout, setInterval, clearTimeout, clearInterval
 - **Promises** - Full async/await support
 - **Standard JavaScript** - All ES2020 features, built-in objects (Array, Object, Math, JSON, etc.)
@@ -144,6 +152,8 @@ node validate-bundle.js path/to/bundle.js
 ├── quickjs/
 │   ├── blob.c                  # Blob implementation
 │   ├── blob.h                  # Blob header
+│   ├── formdata.c              # FormData implementation
+│   ├── formdata.h              # FormData header
 │   ├── fetch_full.c            # Full fetch implementation
 │   ├── fetch_async.c           # Async fetch implementation
 │   ├── fetch_async.h           # Async fetch header
@@ -151,6 +161,7 @@ node validate-bundle.js path/to/bundle.js
 └── tests/
     ├── execTests.ts                 # Test runner with wildcard support
     ├── blob.test.ts                 # Comprehensive Blob tests
+    ├── formdata.test.ts             # Comprehensive FormData tests
     ├── fetch.test.ts                # Basic fetch tests
     ├── comprehensive-fetch.test.ts  # Comprehensive fetch tests
     └── timer.test.ts                # Timer tests
@@ -177,6 +188,43 @@ const response = await fetch('https://api.example.com/data', {
 // Get response as Blob
 const blob = await response.blob();
 const text = await blob.text();
+
+// POST with FormData
+const formData = new FormData();
+formData.append('username', 'john');
+formData.append('file', new Blob(['content'], { type: 'text/plain' }), 'file.txt');
+
+const response = await fetch('https://api.example.com/upload', {
+  method: 'POST',
+  body: formData  // Content-Type automatically set with boundary
+});
+```
+
+### FormData API
+
+```typescript
+// Create FormData
+const formData = new FormData();
+
+// Append string values
+formData.append('name', 'John Doe');
+formData.append('email', 'john@example.com');
+
+// Append files/blobs
+const blob = new Blob(['Hello, World!'], { type: 'text/plain' });
+formData.append('file', blob, 'hello.txt');
+
+// Other methods
+formData.get('name');        // Returns 'John Doe'
+formData.has('email');       // Returns true
+formData.set('name', 'Jane'); // Replaces all 'name' entries
+formData.delete('email');    // Removes 'email' entries
+
+// Use with fetch
+await fetch('/upload', {
+  method: 'POST',
+  body: formData  // Automatically serialized as multipart/form-data
+});
 ```
 
 ### Blob API

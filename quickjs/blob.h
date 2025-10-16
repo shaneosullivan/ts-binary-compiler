@@ -12,4 +12,10 @@ JSValue blob_create(JSContext* ctx, const uint8_t* data, size_t size, const char
 // Blob constructor
 JSValue js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv);
 
+// Check if a value is a Blob
+int blob_is_blob(JSContext* ctx, JSValueConst val);
+
+// Get blob data (returns pointer and size - caller must not free)
+const uint8_t* blob_get_data(JSContext* ctx, JSValueConst val, size_t* out_size);
+
 #endif // BLOB_H

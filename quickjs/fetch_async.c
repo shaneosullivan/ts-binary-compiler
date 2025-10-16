@@ -1,5 +1,6 @@
 #include "fetch_async.h"
 #include "blob.h"
+#include "formdata.h"
 #include <curl/curl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -20,6 +21,8 @@ typedef struct FetchRequest {
     JSValue resolve_func;
     JSValue reject_func;
     char* url;
+    char* post_data;          // For FormData serialized body
+    FormDataResult* formdata_result;  // For FormData cleanup
     long http_code;
     struct FetchRequest* next;
 } FetchRequest;
@@ -81,6 +84,8 @@ void fetch_async_cleanup(void) {
         free(req->response_body.data);
         free(req->response_headers.data);
         free(req->url);
+        if (req->post_data) free(req->post_data);
+        if (req->formdata_result) formdata_free_result(req->formdata_result);
 
         // Free JS values
         JS_FreeValue(req->ctx, req->resolve_func);
@@ -405,6 +410,8 @@ void fetch_async_process(JSContext* ctx) {
                 free(req->response_body.data);
                 free(req->response_headers.data);
                 free(req->url);
+                if (req->post_data) free(req->post_data);
+                if (req->formdata_result) formdata_free_result(req->formdata_result);
                 JS_FreeValue(ctx, req->resolve_func);
                 JS_FreeValue(ctx, req->reject_func);
                 free(req);
@@ -448,6 +455,8 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     req->response_headers.data = NULL;
     req->response_headers.size = 0;
     req->response_headers.capacity = 0;
+    req->post_data = NULL;
+    req->formdata_result = NULL;
 
     // Create curl handle
     req->curl_handle = curl_easy_init();
@@ -518,11 +527,27 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         // Body
         JSValue body_val = JS_GetPropertyStr(ctx, options, "body");
         if (!JS_IsUndefined(body_val)) {
-            const char* body = JS_ToCString(ctx, body_val);
-            if (body) {
-                curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDS, body);
-                // Note: We're not freeing body here because curl needs it during the request
-                // This is a potential memory leak that should be fixed
+            // Check if body is FormData
+            if (formdata_is_formdata(ctx, body_val)) {
+                req->formdata_result = formdata_serialize(ctx, body_val);
+                if (req->formdata_result) {
+                    // Set the serialized body
+                    curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDS, req->formdata_result->body);
+                    curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDSIZE, req->formdata_result->body_length);
+
+                    // Add Content-Type header with boundary
+                    struct curl_slist* headers = NULL;
+                    headers = curl_slist_append(headers, req->formdata_result->content_type);
+                    curl_easy_setopt(req->curl_handle, CURLOPT_HTTPHEADER, headers);
+                }
+            } else {
+                // Regular string body
+                const char* body = JS_ToCString(ctx, body_val);
+                if (body) {
+                    req->post_data = strdup(body);
+                    curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDS, req->post_data);
+                    JS_FreeCString(ctx, body);
+                }
             }
         }
         JS_FreeValue(ctx, body_val);

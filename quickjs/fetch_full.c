@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "timers.h"
 #include "blob.h"
+#include "formdata.h"
 #include "fetch_async.h"
 
 // Enhanced response structure with headers and status
@@ -397,6 +398,9 @@ int main(int argc, char** argv) {
 
     // Initialize Blob class
     blob_init(ctx);
+
+    // Initialize FormData class
+    formdata_init(ctx);
 
     // Initialize async fetch system
     fetch_async_init(ctx);
