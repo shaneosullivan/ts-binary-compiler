@@ -29,8 +29,22 @@ A powerful tool for compiling TypeScript/JavaScript files into standalone binari
 - `setInterval` / `clearInterval`
 - Proper event loop integration
 
+⚙️ **Process Global**
+- `process.env` - Environment variables
+- `process.argv` - Command-line arguments
+- `process.cwd()` - Current working directory
+- `process.platform`, `process.arch`, `process.version`, `process.pid`
+- `process.exit()` - Exit with status code
+
+🔄 **Babel Transpilation**
+- Automatic conversion of modern JavaScript to ES5
+- Converts async/await to promise-based code
+- Ensures QuickJS compatibility
+- Write modern code, run compatible binaries
+- See [BABEL-TRANSPILATION.md](BABEL-TRANSPILATION.md)
+
 🚀 **Minimal Binary Size**
-- ~624KB standalone binaries
+- ~641KB standalone binaries
 - No external dependencies required
 - Optimized with QuickJS
 

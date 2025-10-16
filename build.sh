@@ -136,6 +136,25 @@ if [ ! -f "$TEMP_DIR/bundle.js" ]; then
     exit 1
 fi
 
+# Transpile with Babel to convert async/await and other modern features
+echo "🔄 Transpiling with Babel to ES5 compatible code..."
+BABEL_BIN="$SCRIPT_DIR/node_modules/.bin/babel"
+if [ ! -f "$BABEL_BIN" ]; then
+    echo "❌ Babel not found. Run: npm install"
+    exit 1
+fi
+
+# Transpile the bundle
+$BABEL_BIN "$TEMP_DIR/bundle.js" --out-file "$TEMP_DIR/bundle-transpiled.js" --config-file "$SCRIPT_DIR/.babelrc.json"
+
+if [ ! -f "$TEMP_DIR/bundle-transpiled.js" ]; then
+    echo "❌ Failed to transpile bundle.js"
+    exit 1
+fi
+
+# Replace the original bundle with the transpiled version
+mv "$TEMP_DIR/bundle-transpiled.js" "$TEMP_DIR/bundle.js"
+
 # Validate the bundle for unsupported features
 echo "🔍 Validating bundle for unsupported features..."
 if ! node "$SCRIPT_DIR/validate-bundle.js" "$TEMP_DIR/bundle.js"; then
