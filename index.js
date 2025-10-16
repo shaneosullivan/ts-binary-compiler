@@ -26,32 +26,64 @@ function showUsage() {
 
 function main() {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     showUsage();
     process.exit(args.length === 0 ? 1 : 0);
   }
-  
+
   const packageRoot = path.dirname(__filename);
   const buildScript = path.join(packageRoot, 'build.sh');
-  
+  const userCwd = process.cwd();
+
   // Check if build.sh exists
   if (!fs.existsSync(buildScript)) {
     console.error('❌ Error: build.sh not found in package directory');
     console.error('Package may not be properly installed');
     process.exit(1);
   }
-  
-  // Execute build.sh with the provided arguments
-  const child = spawn('bash', [buildScript, ...args], {
+
+  // Resolve input file path relative to user's current directory
+  const inputFile = args[0];
+  const absoluteInputPath = path.isAbsolute(inputFile)
+    ? inputFile
+    : path.join(userCwd, inputFile);
+
+  // Check if input file exists
+  if (!fs.existsSync(absoluteInputPath)) {
+    console.error(`❌ Error: Input file not found: ${inputFile}`);
+    process.exit(1);
+  }
+
+  // Resolve output path relative to user's current directory (if provided)
+  let outputPath = args[1];
+  if (outputPath && !path.isAbsolute(outputPath)) {
+    outputPath = path.join(userCwd, outputPath);
+  }
+
+  // Build arguments with absolute paths
+  const buildArgs = [absoluteInputPath];
+  if (outputPath) {
+    buildArgs.push(outputPath);
+  }
+
+  // Set environment variable for package root so build.sh can find its resources
+  const env = {
+    ...process.env,
+    TSBC_PACKAGE_ROOT: packageRoot
+  };
+
+  // Execute build.sh from user's directory with absolute paths
+  const child = spawn('bash', [buildScript, ...buildArgs], {
     stdio: 'inherit',
-    cwd: packageRoot
+    cwd: userCwd,
+    env: env
   });
-  
+
   child.on('close', (code) => {
     process.exit(code);
   });
-  
+
   child.on('error', (err) => {
     console.error('❌ Error executing build script:', err.message);
     process.exit(1);

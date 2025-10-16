@@ -73,7 +73,13 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 # Set full output path (make it absolute)
-FULL_OUTPUT_PATH="$(pwd)/$OUTPUT_DIR/$OUTPUT_NAME"
+if [[ "$OUTPUT_DIR" == /* ]]; then
+    # OUTPUT_DIR is already absolute
+    FULL_OUTPUT_PATH="$OUTPUT_DIR/$OUTPUT_NAME"
+else
+    # OUTPUT_DIR is relative, make it absolute
+    FULL_OUTPUT_PATH="$(pwd)/$OUTPUT_DIR/$OUTPUT_NAME"
+fi
 
 echo "🚀 Building QuickJS standalone binary with full fetch API..."
 echo "========================================================="
@@ -96,10 +102,17 @@ if ! command -v qjsc &> /dev/null; then
     exit 1
 fi
 
-# Install dependencies if needed
-if [ ! -f "node_modules/.bin/tsc" ]; then
-    echo "📦 Installing dependencies..."
-    npm install
+# Determine package root directory FIRST (moved from later in the script)
+if [ -n "$TSBC_PACKAGE_ROOT" ]; then
+    SCRIPT_DIR="$TSBC_PACKAGE_ROOT"
+else
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
+# Check for dependencies in package directory (not current directory)
+if [ ! -f "$SCRIPT_DIR/node_modules/.bin/tsc" ]; then
+    echo "📦 Installing dependencies in $SCRIPT_DIR..."
+    (cd "$SCRIPT_DIR" && npm install)
 fi
 
 # Clean previous builds
@@ -108,8 +121,15 @@ rm -f main.js main main-*
 
 # Bundle TypeScript to JavaScript
 echo "📝 Bundling $INPUT_FILE to JavaScript..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-npx esbuild "$INPUT_FILE" --bundle --minify --platform=neutral --inject:"$SCRIPT_DIR/lib/fetch-wrapper.ts" --outfile="$TEMP_DIR/bundle.js"
+
+# Use esbuild from the package's node_modules
+ESBUILD_BIN="$SCRIPT_DIR/node_modules/.bin/esbuild"
+if [ ! -f "$ESBUILD_BIN" ]; then
+    # Try npx as fallback
+    ESBUILD_BIN="npx esbuild"
+fi
+
+$ESBUILD_BIN "$INPUT_FILE" --bundle --minify --platform=neutral --inject:"$SCRIPT_DIR/lib/fetch-wrapper.ts" --outfile="$TEMP_DIR/bundle.js"
 
 if [ ! -f "$TEMP_DIR/bundle.js" ]; then
     echo "❌ Failed to create bundle.js"
@@ -126,7 +146,7 @@ fi
 
 # Build with our custom QuickJS + libcurl implementation
 echo "🔧 Building QuickJS binary with full fetch API..."
-cd quickjs
+cd "$SCRIPT_DIR/quickjs"
 
 
 # Create bundle from main.ts

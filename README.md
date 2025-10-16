@@ -36,13 +36,70 @@ A powerful tool for compiling TypeScript/JavaScript files into standalone binari
 
 ## Installation
 
+### As a Global Command
+
 ```bash
+npm install -g ts-binary-compiler
+```
+
+Then use the `tsbc` command from any directory:
+
+```bash
+tsbc main.ts
+tsbc main.ts myapp
+tsbc main.ts ./build/myapp
+```
+
+### As a Project Dependency
+
+```bash
+npm install --save-dev ts-binary-compiler
+```
+
+Then use via npm scripts:
+
+```json
+{
+  "scripts": {
+    "build": "tsbc src/main.ts dist/myapp"
+  }
+}
+```
+
+### Local Development
+
+Clone the repository and install dependencies:
+
+```bash
+git clone <repo-url>
+cd ts-binary-compiler
 npm install
 ```
 
 ## Usage
 
-### Build a Binary
+### Using the CLI (tsbc command)
+
+```bash
+tsbc <input_file> [output_path]
+```
+
+**Examples:**
+```bash
+# Output to current directory
+tsbc main.ts
+
+# Output with custom name
+tsbc main.ts myapp
+
+# Output to specific directory
+tsbc main.ts ./build/
+
+# Output with specific path
+tsbc main.ts ./build/myapp
+```
+
+### Using build.sh Directly
 
 ```bash
 ./build.sh <input_file> [output_path]
