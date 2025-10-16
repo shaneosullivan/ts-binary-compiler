@@ -158,18 +158,23 @@ mkdir -p "$TEMP_DIR/generated"
 {
     echo '#include <stdint.h>'
     echo ''
-    echo '// JavaScript bundle as byte array'
+    echo '// JavaScript bundle as byte array (with null terminator for safety)'
     echo 'const uint8_t qjsc_bundle_data[] = {'
 
     # Convert to comma-separated hex bytes: 0x41, 0x42, ...
     # Using xxd for cleaner output, 12 bytes per line
-    xxd -i < "$TEMP_DIR/bundle.js" | grep -v 'unsigned' | sed 's/^  //'
+    # Add trailing comma to last line if missing, then add null terminator
+    xxd -i < "$TEMP_DIR/bundle.js" | grep -v 'unsigned' | sed 's/^  //' | sed '$ s/$/,/'
+
+    # Add null terminator for C string safety
+    echo '0x00'
 
     echo '};'
     echo ''
-    echo "const uint32_t qjsc_bundle_size = sizeof(qjsc_bundle_data);"
+    echo "// Size excludes the null terminator"
+    echo "const uint32_t qjsc_bundle_size = sizeof(qjsc_bundle_data) - 1;"
     echo ''
-    echo '// Null-terminated string pointer for convenience'
+    echo '// Null-terminated string pointer'
     echo 'const char* qjsc_bundle_string = (const char*)qjsc_bundle_data;'
 } > "$TEMP_DIR/generated/main_bundle.c"
 

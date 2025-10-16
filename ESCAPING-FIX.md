@@ -43,17 +43,19 @@ This generates clean C code:
 ```c
 #include <stdint.h>
 
-// JavaScript bundle as byte array
+// JavaScript bundle as byte array (with null terminator for safety)
 const uint8_t qjsc_bundle_data[] = {
   0x76, 0x61, 0x72, 0x20, 0x63, 0x3d, 0x67, 0x6c, 0x6f, 0x62, 0x61, 0x6c,
   0x54, 0x68, 0x69, 0x73, 0x2e, 0x66, 0x65, 0x74, 0x63, 0x68, 0x3b, 0x67,
   // ... rest of bytes
-  0x3b, 0x0a  // including newlines, backslashes, everything
+  0x3b, 0x0a,  // last JavaScript byte (newline)
+  0x00         // null terminator for C string safety
 };
 
-const uint32_t qjsc_bundle_size = sizeof(qjsc_bundle_data);
+// Size excludes the null terminator
+const uint32_t qjsc_bundle_size = sizeof(qjsc_bundle_data) - 1;
 
-// Null-terminated string pointer for convenience
+// Null-terminated string pointer
 const char* qjsc_bundle_string = (const char*)qjsc_bundle_data;
 ```
 
@@ -77,8 +79,9 @@ JSValue result = JS_Eval(ctx, qjsc_bundle_string, qjsc_bundle_size, ...);
 - No sed/awk escaping logic needed
 
 ### ✅ Accurate Size
-- `sizeof(qjsc_bundle_data)` is evaluated at **compile time**
-- Always matches the actual byte count
+- `sizeof(qjsc_bundle_data) - 1` is evaluated at **compile time**
+- Excludes the null terminator (JavaScript length only)
+- Always matches the actual JavaScript byte count
 - No strlen() needed at runtime
 
 ### ✅ Simplicity
@@ -90,6 +93,11 @@ JSValue result = JS_Eval(ctx, qjsc_bundle_string, qjsc_bundle_size, ...);
 - Size known at compile time (can be optimized)
 - No runtime string length calculation
 - Embedded directly in the binary
+
+### ✅ Safety
+- Null-terminated for C string compatibility
+- Size parameter prevents buffer overruns
+- Works correctly with both string and byte array APIs
 
 ## Verification
 
