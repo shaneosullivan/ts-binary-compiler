@@ -8,6 +8,7 @@
 #include "blob.h"
 #include "formdata.h"
 #include "fetch_async.h"
+#include "process.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -393,6 +394,9 @@ int main(int argc, char** argv) {
         return 1;
     }
     
+    // Initialize process global (must be first to set up environment)
+    process_init(ctx, argc, argv);
+
     // Initialize timer system
     timers_init();
 

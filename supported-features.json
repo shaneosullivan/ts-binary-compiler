@@ -111,12 +111,17 @@
     "globalThis": {
       "description": "Global object reference",
       "type": "object"
+    },
+    "process": {
+      "description": "Process information and environment (limited subset)",
+      "type": "object",
+      "properties": ["env", "argv", "cwd", "exit", "platform", "arch", "version", "pid"],
+      "notes": "Only basic process properties are available. File system and child process operations are not supported."
     }
   },
   "unsupportedModules": {
     "fs": "File system operations are not supported in standalone binaries",
     "path": "Path operations are not supported in standalone binaries",
-    "process": "Process operations are not supported (except basic environment)",
     "child_process": "Child process operations are not supported",
     "http": "HTTP server is not supported (use fetch for HTTP client)",
     "https": "HTTPS server is not supported (use fetch for HTTPS client)",
