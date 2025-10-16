@@ -10,6 +10,11 @@
 static JSValue url_search_params_append(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue url_search_params_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue url_search_params_to_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_append(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_has(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_delete(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 
 // URL parser state
 typedef struct {
@@ -492,6 +497,203 @@ static JSValue url_search_params_to_string(JSContext* ctx, JSValueConst this_val
     return ret;
 }
 
+// ========================================
+// Headers API Implementation
+// ========================================
+
+// Headers constructor
+static JSValue headers_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+    JSValue obj = JS_NewObject(ctx);
+
+    // Internal storage: object with header names as keys (lowercase)
+    JSValue headers_map = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, obj, "__headers__", headers_map);
+
+    // If init object/array provided
+    if (argc > 0 && !JS_IsUndefined(argv[0])) {
+        // TODO: Support initialization from object or array
+        // For now, just create empty
+    }
+
+    // Add methods to instance
+    JS_SetPropertyStr(ctx, obj, "append", JS_NewCFunction(ctx, headers_append, "append", 2));
+    JS_SetPropertyStr(ctx, obj, "get", JS_NewCFunction(ctx, headers_get, "get", 1));
+    JS_SetPropertyStr(ctx, obj, "has", JS_NewCFunction(ctx, headers_has, "has", 1));
+    JS_SetPropertyStr(ctx, obj, "set", JS_NewCFunction(ctx, headers_set, "set", 2));
+    JS_SetPropertyStr(ctx, obj, "delete", JS_NewCFunction(ctx, headers_delete, "delete", 1));
+
+    return obj;
+}
+
+// Convert header name to lowercase
+static char* normalize_header_name(const char* name) {
+    if (!name) return NULL;
+    char* normalized = strdup(name);
+    if (!normalized) return NULL;
+
+    for (char* p = normalized; *p; p++) {
+        *p = tolower((unsigned char)*p);
+    }
+    return normalized;
+}
+
+// Headers.prototype.append(name, value)
+static JSValue headers_append(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    if (argc < 2) {
+        return JS_ThrowTypeError(ctx, "append requires 2 arguments");
+    }
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    const char* name = JS_ToCString(ctx, argv[0]);
+    const char* value = JS_ToCString(ctx, argv[1]);
+
+    if (name && value) {
+        char* norm_name = normalize_header_name(name);
+        if (norm_name) {
+            // Get existing value
+            JSValue existing = JS_GetPropertyStr(ctx, headers_map, norm_name);
+
+            if (JS_IsUndefined(existing)) {
+                // First value for this header
+                JS_SetPropertyStr(ctx, headers_map, norm_name, JS_NewString(ctx, value));
+            } else {
+                // Append with comma separator
+                const char* existing_str = JS_ToCString(ctx, existing);
+                if (existing_str) {
+                    size_t new_len = strlen(existing_str) + strlen(value) + 3;
+                    char* combined = malloc(new_len);
+                    if (combined) {
+                        snprintf(combined, new_len, "%s, %s", existing_str, value);
+                        JS_SetPropertyStr(ctx, headers_map, norm_name, JS_NewString(ctx, combined));
+                        free(combined);
+                    }
+                    JS_FreeCString(ctx, existing_str);
+                }
+            }
+
+            JS_FreeValue(ctx, existing);
+            free(norm_name);
+        }
+    }
+
+    if (name) JS_FreeCString(ctx, name);
+    if (value) JS_FreeCString(ctx, value);
+    JS_FreeValue(ctx, headers_map);
+
+    return JS_UNDEFINED;
+}
+
+// Headers.prototype.get(name)
+static JSValue headers_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    if (argc < 1) {
+        return JS_ThrowTypeError(ctx, "get requires 1 argument");
+    }
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    const char* name = JS_ToCString(ctx, argv[0]);
+    JSValue result = JS_NULL;
+
+    if (name) {
+        char* norm_name = normalize_header_name(name);
+        if (norm_name) {
+            result = JS_GetPropertyStr(ctx, headers_map, norm_name);
+            if (JS_IsUndefined(result)) {
+                JS_FreeValue(ctx, result);
+                result = JS_NULL;
+            }
+            free(norm_name);
+        }
+        JS_FreeCString(ctx, name);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return result;
+}
+
+// Headers.prototype.has(name)
+static JSValue headers_has(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    if (argc < 1) {
+        return JS_ThrowTypeError(ctx, "has requires 1 argument");
+    }
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    const char* name = JS_ToCString(ctx, argv[0]);
+    int has = 0;
+
+    if (name) {
+        char* norm_name = normalize_header_name(name);
+        if (norm_name) {
+            JSValue val = JS_GetPropertyStr(ctx, headers_map, norm_name);
+            has = !JS_IsUndefined(val);
+            JS_FreeValue(ctx, val);
+            free(norm_name);
+        }
+        JS_FreeCString(ctx, name);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return JS_NewBool(ctx, has);
+}
+
+// Headers.prototype.set(name, value)
+static JSValue headers_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    if (argc < 2) {
+        return JS_ThrowTypeError(ctx, "set requires 2 arguments");
+    }
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    const char* name = JS_ToCString(ctx, argv[0]);
+    const char* value = JS_ToCString(ctx, argv[1]);
+
+    if (name && value) {
+        char* norm_name = normalize_header_name(name);
+        if (norm_name) {
+            JS_SetPropertyStr(ctx, headers_map, norm_name, JS_NewString(ctx, value));
+            free(norm_name);
+        }
+    }
+
+    if (name) JS_FreeCString(ctx, name);
+    if (value) JS_FreeCString(ctx, value);
+    JS_FreeValue(ctx, headers_map);
+
+    return JS_UNDEFINED;
+}
+
+// Headers.prototype.delete(name)
+static JSValue headers_delete(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    if (argc < 1) {
+        return JS_ThrowTypeError(ctx, "delete requires 1 argument");
+    }
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    const char* name = JS_ToCString(ctx, argv[0]);
+
+    if (name) {
+        char* norm_name = normalize_header_name(name);
+        if (norm_name) {
+            JSAtom atom = JS_NewAtom(ctx, norm_name);
+            JS_DeleteProperty(ctx, headers_map, atom, 0);
+            JS_FreeAtom(ctx, atom);
+            free(norm_name);
+        }
+        JS_FreeCString(ctx, name);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return JS_UNDEFINED;
+}
+
 // Initialize URL and URLSearchParams APIs
 void init_url_api(JSContext* ctx, JSValue global) {
     // Create URL constructor
@@ -508,4 +710,8 @@ void init_url_api(JSContext* ctx, JSValue global) {
 
     JS_SetPropertyStr(ctx, usp_ctor, "prototype", usp_proto);
     JS_SetPropertyStr(ctx, global, "URLSearchParams", usp_ctor);
+
+    // Create Headers constructor
+    JSValue headers_ctor = JS_NewCFunction2(ctx, headers_constructor, "Headers", 1, JS_CFUNC_constructor, 0);
+    JS_SetPropertyStr(ctx, global, "Headers", headers_ctor);
 }

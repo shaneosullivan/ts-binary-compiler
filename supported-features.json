@@ -131,9 +131,10 @@
       "notes": "Provides utilities for working with URL query strings"
     },
     "Headers": {
-      "description": "HTTP Headers (read-only, from Response objects)",
+      "description": "HTTP Headers management",
       "type": "class",
-      "notes": "Available as part of Response objects from fetch(). Cannot be constructed directly yet."
+      "methods": ["append", "get", "has", "set", "delete"],
+      "notes": "Create and manipulate HTTP headers. Header names are case-insensitive."
     }
   },
   "unsupportedModules": {

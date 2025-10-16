@@ -133,3 +133,5 @@ build
 
 quickjs/generated
 tests/output
+
+!validate-bundle.js
