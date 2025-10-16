@@ -11,6 +11,7 @@
 #include "process.h"
 #include "url.h"
 #include "encoding.h"
+#include "crypto.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -433,6 +434,13 @@ int main(int argc, char** argv) {
 
     // Initialize TextEncoder, TextDecoder, atob, and btoa APIs
     init_encoding_api(ctx, global);
+
+    // Initialize crypto API (getRandomValues, randomUUID)
+    init_crypto_api(ctx, global);
+
+    // Set window and navigator to undefined (this is NOT a browser environment)
+    JS_SetPropertyStr(ctx, global, "window", JS_UNDEFINED);
+    JS_SetPropertyStr(ctx, global, "navigator", JS_UNDEFINED);
 
     JS_FreeValue(ctx, global);
     

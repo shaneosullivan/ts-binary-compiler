@@ -149,25 +149,26 @@ function checkGlobal(globalName) {
     return { supported: true };
   }
 
+  // Check for intentionally undefined globals (allowed)
+  const intentionallyUndefined = ['window', 'navigator'];
+  if (intentionallyUndefined.includes(globalName)) {
+    return {
+      supported: true,
+      note: `${globalName} is intentionally undefined (not a browser environment)`
+    };
+  }
+
   // Provide specific error messages for common unsupported globals
   const unsupportedGlobals = {
     'Request': 'Request API is not fully implemented. Use fetch(url, options) instead.',
     'localStorage': 'localStorage is not available (no persistent storage)',
     'sessionStorage': 'sessionStorage is not available (no persistent storage)',
     'document': 'DOM APIs are not available (not a browser environment)',
-    'window': 'window object is not available (not a browser environment)',
     'WebSocket': 'WebSocket is not implemented',
     'EventSource': 'EventSource (Server-Sent Events) is not implemented',
     'MessageChannel': 'MessageChannel is not implemented',
-    'TextEncoder': 'TextEncoder is not yet implemented',
-    'TextDecoder': 'TextDecoder is not yet implemented',
-    'atob': 'atob (base64 decode) is not yet implemented',
-    'btoa': 'btoa (base64 encode) is not yet implemented',
     'FileReader': 'FileReader is not available',
-    'File': 'File API is not available. Use Blob instead.',
-    'crypto': 'Web Crypto API is not available',
     'performance': 'Performance API is not available',
-    'navigator': 'navigator object is not available',
     'location': 'location object is not available',
     'history': 'history object is not available',
     'XMLHttpRequest': 'XMLHttpRequest is not available. Use fetch() instead.'
@@ -251,6 +252,9 @@ function validateBundle(bundlePath) {
         console.log(`      ${result.reason}`);
       } else {
         console.log(colorize(`   ✅ ${globalName}`, 'green'));
+        if (result.note) {
+          console.log(colorize(`      ${result.note}`, 'dim'));
+        }
       }
     });
   }

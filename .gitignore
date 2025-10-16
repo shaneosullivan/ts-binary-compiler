@@ -136,3 +136,4 @@ quickjs/generated
 tests/output
 
 !validate-bundle.js
+!tests/openaiai.test.js

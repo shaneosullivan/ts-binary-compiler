@@ -48,6 +48,13 @@
       "methods": ["text", "arrayBuffer", "slice"],
       "properties": ["size", "type"]
     },
+    "File": {
+      "description": "File object (extends Blob)",
+      "type": "class",
+      "methods": ["text", "arrayBuffer"],
+      "properties": ["size", "type", "name", "lastModified"],
+      "notes": "Represents a file with metadata. Inherits from Blob."
+    },
     "FormData": {
       "description": "Multipart form data for file uploads",
       "type": "class",
@@ -161,6 +168,12 @@
       "type": "function",
       "returns": "string",
       "notes": "Standard base64 encoding function"
+    },
+    "crypto": {
+      "description": "Web Crypto API (subset)",
+      "type": "object",
+      "methods": ["getRandomValues", "randomUUID"],
+      "notes": "Provides cryptographically secure random values. Uses /dev/urandom when available, falls back to time-based PRNG. randomUUID generates RFC 4122 version 4 UUIDs."
     }
   },
   "unsupportedModules": {
