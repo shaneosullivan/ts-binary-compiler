@@ -2,8 +2,11 @@
 set -e
 
 # Configurable build script for ts-binary-compiler
-# 
-# Usage: ./build.sh <input_file> [output_path]
+#
+# Usage: ./build.sh [-f] <input_file> [output_path]
+#
+# Options:
+#   -f           - Force build, skip validation checks for unsupported globals
 #
 # Arguments:
 #   input_file   - TypeScript file to compile (required)
@@ -17,18 +20,38 @@ set -e
 #
 # Examples:
 #   ./build.sh main.ts                           # Output: ./main (or ./main.exe on Windows)
+#   ./build.sh -f main.ts                        # Force build without validation
 #   ./build.sh main.ts myapp                     # Output: ./myapp (or ./myapp.exe on Windows)
 #   ./build.sh main.ts ./build/                  # Output: ./build/main (or ./build/main.exe on Windows)
 #   ./build.sh main.ts ./build/myapp             # Output: ./build/myapp
+
+# Parse flags
+FORCE_BUILD=false
+while getopts "f" opt; do
+    case $opt in
+        f)
+            FORCE_BUILD=true
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
 
 # Check for required input file argument
 if [ $# -eq 0 ]; then
     echo "❌ Error: Input file is required"
     echo ""
-    echo "Usage: $0 <input_file> [output_path]"
+    echo "Usage: $0 [-f] <input_file> [output_path]"
+    echo ""
+    echo "Options:"
+    echo "  -f                            # Force build, skip validation"
     echo ""
     echo "Examples:"
     echo "  $0 main.ts                    # Output to current directory"
+    echo "  $0 -f main.ts                 # Force build without validation"
     echo "  $0 main.ts myapp              # Output as 'myapp'"
     echo "  $0 main.ts ./build/           # Output to build directory (recommended for test files)"
     echo "  $0 main.ts ./build/myapp      # Output as './build/myapp'"
@@ -171,12 +194,17 @@ fi
 # Replace the original bundle with the transpiled version
 mv "$TEMP_DIR/bundle-transpiled.js" "$TEMP_DIR/bundle.js"
 
-# Validate the bundle for unsupported features
-echo "🔍 Validating bundle for unsupported features..."
-if ! node "$SCRIPT_DIR/validate-bundle.js" "$TEMP_DIR/bundle.js"; then
-    echo ""
-    echo "💡 Tip: Check supported-features.json for a complete list of supported APIs"
-    exit 1
+# Validate the bundle for unsupported features (unless -f flag is set)
+if [ "$FORCE_BUILD" = false ]; then
+    echo "🔍 Validating bundle for unsupported features..."
+    if ! node "$SCRIPT_DIR/validate-bundle.js" "$TEMP_DIR/bundle.js"; then
+        echo ""
+        echo "💡 Tip: Check supported-features.json for a complete list of supported APIs"
+        echo "💡 Or use -f flag to force build without validation: ./build.sh -f $INPUT_FILE"
+        exit 1
+    fi
+else
+    echo "⚠️  Skipping validation (force build mode)"
 fi
 
 # Build with our custom QuickJS + libcurl implementation
