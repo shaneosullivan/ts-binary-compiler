@@ -354,6 +354,9 @@ void fetch_async_process(JSContext* ctx) {
     int still_running = 0;
     curl_multi_perform(multi_handle, &still_running);
 
+    fprintf(stderr, "[FETCH_PROCESS] curl_multi_perform: %d requests still running\n", still_running);
+    fflush(stderr);
+
     // Check for completed transfers
     CURLMsg* msg;
     int msgs_left;
@@ -361,6 +364,10 @@ void fetch_async_process(JSContext* ctx) {
         if (msg->msg == CURLMSG_DONE) {
             CURL* curl_handle = msg->easy_handle;
             CURLcode result = msg->data.result;
+
+            fprintf(stderr, "[FETCH_PROCESS] Request completed with result: %d (%s)\n",
+                    result, curl_easy_strerror(result));
+            fflush(stderr);
 
             // Find the corresponding request
             FetchRequest* req = pending_requests;
@@ -384,7 +391,14 @@ void fetch_async_process(JSContext* ctx) {
                 // Get HTTP response code
                 curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &req->http_code);
 
+                fprintf(stderr, "[FETCH_PROCESS] HTTP status: %ld, Response body size: %zu bytes\n",
+                        req->http_code, req->response_body.size);
+                fflush(stderr);
+
                 if (result == CURLE_OK) {
+                    fprintf(stderr, "[FETCH_PROCESS] Creating response object and resolving promise\n");
+                    fflush(stderr);
+
                     // Create response object
                     JSValue response = create_response_object(ctx, req);
 
@@ -392,7 +406,14 @@ void fetch_async_process(JSContext* ctx) {
                     JSValue ret = JS_Call(ctx, req->resolve_func, JS_UNDEFINED, 1, &response);
                     JS_FreeValue(ctx, ret);
                     JS_FreeValue(ctx, response);
+
+                    fprintf(stderr, "[FETCH_PROCESS] Promise resolved successfully\n");
+                    fflush(stderr);
                 } else {
+                    fprintf(stderr, "[FETCH_PROCESS] Request failed, rejecting promise: %s\n",
+                            curl_easy_strerror(result));
+                    fflush(stderr);
+
                     // Create error
                     const char* error_msg = curl_easy_strerror(result);
                     JSValue error = JS_NewError(ctx);
@@ -427,15 +448,25 @@ int fetch_async_has_active(void) {
 
 // JavaScript fetch function (returns Promise)
 JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    fprintf(stderr, "[FETCH] js_fetch_async called with %d arguments\n", argc);
+    fflush(stderr);
+
     if (argc < 1) {
+        fprintf(stderr, "[FETCH] ERROR: No arguments provided\n");
+        fflush(stderr);
         return JS_ThrowTypeError(ctx, "fetch requires at least 1 argument");
     }
 
     // Get URL
     const char* url = JS_ToCString(ctx, argv[0]);
     if (!url) {
+        fprintf(stderr, "[FETCH] ERROR: Failed to convert URL to string\n");
+        fflush(stderr);
         return JS_EXCEPTION;
     }
+
+    fprintf(stderr, "[FETCH] URL: %s\n", url);
+    fflush(stderr);
 
     // Create fetch request
     FetchRequest* req = (FetchRequest*)calloc(1, sizeof(FetchRequest));
@@ -476,6 +507,8 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     // Handle options (method, headers, body)
     if (argc >= 2 && JS_IsObject(argv[1])) {
+        fprintf(stderr, "[FETCH] Processing options object\n");
+        fflush(stderr);
         JSValue options = argv[1];
 
         // Method
@@ -483,6 +516,8 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         if (!JS_IsUndefined(method_val)) {
             const char* method = JS_ToCString(ctx, method_val);
             if (method) {
+                fprintf(stderr, "[FETCH] Method: %s\n", method);
+                fflush(stderr);
                 curl_easy_setopt(req->curl_handle, CURLOPT_CUSTOMREQUEST, method);
                 JS_FreeCString(ctx, method);
             }
@@ -492,10 +527,15 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         // Headers
         JSValue headers_val = JS_GetPropertyStr(ctx, options, "headers");
         if (JS_IsObject(headers_val)) {
+            fprintf(stderr, "[FETCH] Processing headers object\n");
+            fflush(stderr);
+
             struct curl_slist* headers = NULL;
             JSPropertyEnum* props;
             uint32_t prop_count;
             if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_val, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+                fprintf(stderr, "[FETCH] Found %u headers\n", prop_count);
+                fflush(stderr);
                 for (uint32_t i = 0; i < prop_count; i++) {
                     JSValue key = JS_AtomToString(ctx, props[i].atom);
                     JSValue val = JS_GetProperty(ctx, headers_val, props[i].atom);
@@ -504,6 +544,9 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
                     const char* val_str = JS_ToCString(ctx, val);
 
                     if (key_str && val_str) {
+                        fprintf(stderr, "[FETCH] Header: %s: %s\n", key_str, val_str);
+                        fflush(stderr);
+
                         char* header = (char*)malloc(strlen(key_str) + strlen(val_str) + 3);
                         sprintf(header, "%s: %s", key_str, val_str);
                         headers = curl_slist_append(headers, header);
@@ -529,8 +572,16 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         if (!JS_IsUndefined(body_val)) {
             // Check if body is FormData
             if (formdata_is_formdata(ctx, body_val)) {
+                fprintf(stderr, "[FETCH] Body is FormData\n");
+                fflush(stderr);
+
                 req->formdata_result = formdata_serialize(ctx, body_val);
                 if (req->formdata_result) {
+                    fprintf(stderr, "[FETCH] FormData serialized: %zu bytes, Content-Type: %s\n",
+                            req->formdata_result->body_length,
+                            req->formdata_result->content_type);
+                    fflush(stderr);
+
                     // Set the serialized body
                     curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDS, req->formdata_result->body);
                     curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDSIZE, req->formdata_result->body_length);
@@ -544,6 +595,9 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
                 // Regular string body
                 const char* body = JS_ToCString(ctx, body_val);
                 if (body) {
+                    fprintf(stderr, "[FETCH] Body is string: %zu bytes\n", strlen(body));
+                    fflush(stderr);
+
                     req->post_data = strdup(body);
                     curl_easy_setopt(req->curl_handle, CURLOPT_POSTFIELDS, req->post_data);
                     JS_FreeCString(ctx, body);
@@ -554,6 +608,9 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     // Create promise - JS_NewPromiseCapability returns an array [promise, resolve, reject]
+    fprintf(stderr, "[FETCH] Creating promise\n");
+    fflush(stderr);
+
     JSValue resolving_funcs[2];
     JSValue promise = JS_NewPromiseCapability(ctx, resolving_funcs);
 
@@ -571,6 +628,9 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     // Add to multi handle
     curl_multi_add_handle(multi_handle, req->curl_handle);
+
+    fprintf(stderr, "[FETCH] Request queued, returning promise\n");
+    fflush(stderr);
 
     return promise;
 }
