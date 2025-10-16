@@ -161,19 +161,28 @@ if [ ! -f "$TEMP_DIR/bundle-raw.js" ]; then
     exit 1
 fi
 
+# Build Promise polyfill with ES5 target to avoid method shorthand syntax
+echo "🔧 Preparing Promise polyfill with core-js..."
+$ESBUILD_BIN "$SCRIPT_DIR/lib/promise-polyfill.js" --bundle --format=esm --target=es5 --outfile="$TEMP_DIR/promise-polyfill-es5.js"
+
+# NOTE: We use esbuild's --target=es5 instead of Babel to avoid ES6 method shorthand syntax
+# like "key"() {} which QuickJS doesn't support. esbuild converts it to "key": function() {}.
+
 # Compile fetch wrapper to JavaScript
 echo "🔗 Preparing fetch wrapper..."
 $ESBUILD_BIN "$SCRIPT_DIR/lib/fetch-wrapper.ts" --format=esm --outfile="$TEMP_DIR/fetch-wrapper.js"
 
-# Prepend fetch wrapper to the bundle
-# This ensures the wrapper captures the native fetch correctly
+# Prepend Promise polyfill, then fetch wrapper, then the bundle
+# This ensures Promise is patched before any code runs
 {
+    cat "$TEMP_DIR/promise-polyfill-es5.js"
+    echo ""
     cat "$TEMP_DIR/fetch-wrapper.js"
     echo ""
     cat "$TEMP_DIR/bundle-raw.js"
 } > "$TEMP_DIR/bundle.js"
 
-rm "$TEMP_DIR/bundle-raw.js" "$TEMP_DIR/fetch-wrapper.js"
+rm "$TEMP_DIR/bundle-raw.js" "$TEMP_DIR/fetch-wrapper.js" "$TEMP_DIR/promise-polyfill-es5.js"
 
 # Transpile with Babel to convert async/await and other modern features
 echo "🔄 Transpiling with Babel to ES5 compatible code..."

@@ -389,13 +389,31 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Failed to create JS runtime\n");
         return 1;
     }
-    
-    JSContext* ctx = JS_NewContext(rt);
+
+    // Use raw context to selectively add intrinsics
+    // We exclude JS_AddIntrinsicPromise to allow core-js polyfill to provide Promise
+    JSContext* ctx = JS_NewContextRaw(rt);
     if (!ctx) {
         fprintf(stderr, "Failed to create JS context\n");
         JS_FreeRuntime(rt);
         return 1;
     }
+
+    // Add intrinsics except Promise (core-js will provide it)
+    JS_AddIntrinsicBaseObjects(ctx);
+    JS_AddIntrinsicDate(ctx);
+    JS_AddIntrinsicEval(ctx);
+    JS_AddIntrinsicStringNormalize(ctx);
+    JS_AddIntrinsicRegExpCompiler(ctx);
+    JS_AddIntrinsicRegExp(ctx);
+    JS_AddIntrinsicJSON(ctx);
+    JS_AddIntrinsicProxy(ctx);
+    JS_AddIntrinsicMapSet(ctx);
+    JS_AddIntrinsicTypedArrays(ctx);
+    // NOTE: Intentionally NOT calling JS_AddIntrinsicPromise(ctx)
+    // This allows the core-js Promise polyfill to provide a full implementation
+    // that supports proper subclassing, which the native QuickJS Promise doesn't
+    JS_AddIntrinsicWeakRef(ctx);
     
     // Initialize process global (must be first to set up environment)
     process_init(ctx, argc, argv);

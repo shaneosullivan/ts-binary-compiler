@@ -137,3 +137,4 @@ tests/output
 
 !validate-bundle.js
 !tests/openaiai.test.js
+!lib/promise-polyfill.js

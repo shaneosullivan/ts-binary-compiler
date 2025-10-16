@@ -4,6 +4,8 @@
 
 /// <reference path="./quickjs.d.ts" />
 
+// NOTE: Promise polyfill (core-js) is loaded before this file in build.sh
+
 // CRITICAL: Store the native fetch BEFORE overwriting it
 // The C code has already set globalThis.fetch by the time this module loads
 const originalNativeFetch = (globalThis as any).fetch;
@@ -15,7 +17,8 @@ if (typeof originalNativeFetch !== "function") {
   );
 }
 
-// Create a wrapper that normalizes Request objects to url/options
+// Create a wrapper that normalizes Request objects and ensures Promises from JavaScript
+// This is critical because the native fetch returns QuickJS native Promises which don't support subclassing
 (globalThis as any).fetch = function (
   input: string | Request,
   init?: RequestInit
@@ -30,8 +33,24 @@ if (typeof originalNativeFetch !== "function") {
           ...init,
         };
 
-  // Call the native fetch - it already returns a Promise
-  return originalNativeFetch(url, options);
+  // Create a JavaScript Promise that wraps the native fetch
+  // This ensures the Promise is created with the JavaScript Promise constructor (core-js)
+  // rather than QuickJS's native Promise which doesn't support subclassing
+  const jsPromise = new Promise<Response>((resolve, reject) => {
+    try {
+      const nativePromise = originalNativeFetch(url, options);
+
+      // Chain the native promise to our JavaScript promise
+      // The native promise's .then() will be called, but we immediately
+      // resolve/reject our JS promise with the result
+      const nativeThen = nativePromise.then;
+      nativeThen.call(nativePromise, resolve, reject);
+    } catch (error) {
+      reject(error);
+    }
+  });
+
+  return jsPromise;
 };
 
 // Export empty object to make this a module
