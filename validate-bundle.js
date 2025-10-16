@@ -151,9 +151,6 @@ function checkGlobal(globalName) {
 
   // Provide specific error messages for common unsupported globals
   const unsupportedGlobals = {
-    'URL': 'URL API is not yet implemented. Consider parsing URLs manually or using string manipulation.',
-    'URLSearchParams': 'URLSearchParams is not yet implemented. Consider parsing query strings manually.',
-    'Headers': 'Headers API is available only as part of Response objects from fetch(). Cannot construct directly.',
     'Request': 'Request API is not fully implemented. Use fetch(url, options) instead.',
     'localStorage': 'localStorage is not available (no persistent storage)',
     'sessionStorage': 'sessionStorage is not available (no persistent storage)',

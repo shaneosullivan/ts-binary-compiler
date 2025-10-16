@@ -117,6 +117,23 @@
       "type": "object",
       "properties": ["env", "argv", "cwd", "exit", "platform", "arch", "version", "pid"],
       "notes": "Only basic process properties are available. File system and child process operations are not supported."
+    },
+    "URL": {
+      "description": "URL parsing and manipulation (web-compatible)",
+      "type": "class",
+      "properties": ["href", "protocol", "hostname", "port", "pathname", "search", "hash", "host", "origin", "username", "password"],
+      "notes": "Provides parsing and manipulation of URLs following the WHATWG URL Standard"
+    },
+    "URLSearchParams": {
+      "description": "Query string parsing and construction",
+      "type": "class",
+      "methods": ["append", "get", "toString"],
+      "notes": "Provides utilities for working with URL query strings"
+    },
+    "Headers": {
+      "description": "HTTP Headers (read-only, from Response objects)",
+      "type": "class",
+      "notes": "Available as part of Response objects from fetch(). Cannot be constructed directly yet."
     }
   },
   "unsupportedModules": {

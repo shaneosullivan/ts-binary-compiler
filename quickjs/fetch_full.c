@@ -9,6 +9,7 @@
 #include "formdata.h"
 #include "fetch_async.h"
 #include "process.h"
+#include "url.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -425,7 +426,10 @@ int main(int argc, char** argv) {
     JSValue console_obj = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, console_obj, "log", JS_NewCFunction(ctx, js_console_log, "log", 1));
     JS_SetPropertyStr(ctx, global, "console", console_obj);
-    
+
+    // Initialize URL and URLSearchParams APIs
+    init_url_api(ctx, global);
+
     JS_FreeValue(ctx, global);
     
     // Execute bundled JS
