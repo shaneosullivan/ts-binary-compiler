@@ -4,8 +4,16 @@
 
 /// <reference path="./quickjs.d.ts" />
 
-// Store the original native fetch function
+// CRITICAL: Store the native fetch BEFORE overwriting it
+// The C code has already set globalThis.fetch by the time this module loads
 const originalNativeFetch = (globalThis as any).fetch;
+
+// Verify we captured the native function
+if (typeof originalNativeFetch !== "function") {
+  throw new Error(
+    "fetch-wrapper: Native fetch not found! The C runtime must initialize fetch before the bundle runs."
+  );
+}
 
 // Create a wrapper that normalizes Request objects to url/options
 (globalThis as any).fetch = function (

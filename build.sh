@@ -129,12 +129,26 @@ if [ ! -f "$ESBUILD_BIN" ]; then
     ESBUILD_BIN="npx esbuild"
 fi
 
-$ESBUILD_BIN "$INPUT_FILE" --bundle --minify --platform=neutral --inject:"$SCRIPT_DIR/lib/fetch-wrapper.ts" --outfile="$TEMP_DIR/bundle.js"
+$ESBUILD_BIN "$INPUT_FILE" --bundle --minify --platform=neutral --outfile="$TEMP_DIR/bundle-raw.js"
 
-if [ ! -f "$TEMP_DIR/bundle.js" ]; then
-    echo "❌ Failed to create bundle.js"
+if [ ! -f "$TEMP_DIR/bundle-raw.js" ]; then
+    echo "❌ Failed to create bundle"
     exit 1
 fi
+
+# Compile fetch wrapper to JavaScript
+echo "🔗 Preparing fetch wrapper..."
+$ESBUILD_BIN "$SCRIPT_DIR/lib/fetch-wrapper.ts" --format=esm --outfile="$TEMP_DIR/fetch-wrapper.js"
+
+# Prepend fetch wrapper to the bundle
+# This ensures the wrapper captures the native fetch correctly
+{
+    cat "$TEMP_DIR/fetch-wrapper.js"
+    echo ""
+    cat "$TEMP_DIR/bundle-raw.js"
+} > "$TEMP_DIR/bundle.js"
+
+rm "$TEMP_DIR/bundle-raw.js" "$TEMP_DIR/fetch-wrapper.js"
 
 # Transpile with Babel to convert async/await and other modern features
 echo "🔄 Transpiling with Babel to ES5 compatible code..."
