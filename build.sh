@@ -30,8 +30,10 @@ if [ $# -eq 0 ]; then
     echo "Examples:"
     echo "  $0 main.ts                    # Output to current directory"
     echo "  $0 main.ts myapp              # Output as 'myapp'"
-    echo "  $0 main.ts ./build/           # Output to build directory"
+    echo "  $0 main.ts ./build/           # Output to build directory (recommended for test files)"
     echo "  $0 main.ts ./build/myapp      # Output as './build/myapp'"
+    echo ""
+    echo "Note: Test binaries should be output to ./build/ to keep the repository root clean."
     exit 1
 fi
 
