@@ -152,7 +152,8 @@ cd "$SCRIPT_DIR/quickjs"
 # Create bundle from main.ts
 echo "📋 Creating JavaScript bundle..."
 mkdir -p "$TEMP_DIR/generated"
-BUNDLE_CONTENT=$(cat "$TEMP_DIR/bundle.js" | sed 's/"/\\"/g' | tr -d '\n')
+# Escape backslashes first (\ -> \\), then escape double quotes (" -> \")
+BUNDLE_CONTENT=$(cat "$TEMP_DIR/bundle.js" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\n')
 cat > "$TEMP_DIR/generated/main_bundle.c" << EOF
 #include <stdint.h>
 
