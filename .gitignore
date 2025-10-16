@@ -12,6 +12,11 @@ bundle.js
 bundle_test.js
 *.pkg
 
+# Test binaries (should be in build/ directory)
+*.test
+test-*
+!tests/
+
 
 # QuickJS compiled files
 quickjs/main_bundle.c
