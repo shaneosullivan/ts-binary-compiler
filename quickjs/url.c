@@ -817,6 +817,13 @@ void init_url_api(JSContext* ctx, JSValue global) {
     JS_SetPropertyStr(ctx, headers_proto, "keys", JS_NewCFunction(ctx, headers_keys, "keys", 0));
     JS_SetPropertyStr(ctx, headers_proto, "values", JS_NewCFunction(ctx, headers_values, "values", 0));
 
+    // Add Symbol.iterator to make Headers iterable
+    JSValue symbol_ctor = JS_GetPropertyStr(ctx, global, "Symbol");
+    JSValue iterator_symbol = JS_GetPropertyStr(ctx, symbol_ctor, "iterator");
+    JS_SetProperty(ctx, headers_proto, JS_ValueToAtom(ctx, iterator_symbol), JS_NewCFunction(ctx, headers_entries, "entries", 0));
+    JS_FreeValue(ctx, iterator_symbol);
+    JS_FreeValue(ctx, symbol_ctor);
+
     JS_SetPropertyStr(ctx, headers_ctor, "prototype", headers_proto);
     JS_SetPropertyStr(ctx, global, "Headers", headers_ctor);
 }

@@ -442,9 +442,13 @@ int main(int argc, char** argv) {
     JS_SetPropertyStr(ctx, global, "setInterval", JS_NewCFunction(ctx, js_setInterval, "setInterval", 2));
     JS_SetPropertyStr(ctx, global, "clearInterval", JS_NewCFunction(ctx, js_clearInterval, "clearInterval", 1));
     
-    // Add console object with log method
+    // Add console object with all standard methods
     JSValue console_obj = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, console_obj, "log", JS_NewCFunction(ctx, js_console_log, "log", 1));
+    JS_SetPropertyStr(ctx, console_obj, "debug", JS_NewCFunction(ctx, js_console_log, "debug", 1));
+    JS_SetPropertyStr(ctx, console_obj, "info", JS_NewCFunction(ctx, js_console_log, "info", 1));
+    JS_SetPropertyStr(ctx, console_obj, "warn", JS_NewCFunction(ctx, js_console_log, "warn", 1));
+    JS_SetPropertyStr(ctx, console_obj, "error", JS_NewCFunction(ctx, js_console_log, "error", 1));
     JS_SetPropertyStr(ctx, global, "console", console_obj);
 
     // Initialize URL and URLSearchParams APIs
