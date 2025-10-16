@@ -1,0 +1,150 @@
+{
+  "description": "Supported features in ts-binary-compiler",
+  "version": "1.0.0",
+  "globals": {
+    "console": {
+      "description": "Console output",
+      "members": ["log"]
+    },
+    "fetch": {
+      "description": "HTTP client using libcurl",
+      "type": "function",
+      "returns": "Promise<Response>",
+      "methods": {
+        "GET": true,
+        "POST": true,
+        "PUT": true,
+        "DELETE": true,
+        "PATCH": true,
+        "HEAD": true,
+        "OPTIONS": true
+      }
+    },
+    "setTimeout": {
+      "description": "Execute callback after delay",
+      "type": "function",
+      "returns": "number"
+    },
+    "clearTimeout": {
+      "description": "Cancel a setTimeout",
+      "type": "function"
+    },
+    "setInterval": {
+      "description": "Execute callback repeatedly",
+      "type": "function",
+      "returns": "number"
+    },
+    "clearInterval": {
+      "description": "Cancel a setInterval",
+      "type": "function"
+    },
+    "Promise": {
+      "description": "ES6 Promise implementation",
+      "type": "class"
+    },
+    "Blob": {
+      "description": "Binary Large Object",
+      "type": "class",
+      "methods": ["text", "arrayBuffer", "slice"],
+      "properties": ["size", "type"]
+    },
+    "Response": {
+      "description": "HTTP Response (from fetch)",
+      "type": "class",
+      "methods": ["text", "json", "arrayBuffer", "blob"],
+      "properties": ["status", "statusText", "ok", "headers"]
+    },
+    "JSON": {
+      "description": "JSON parsing and stringification",
+      "members": ["parse", "stringify"]
+    },
+    "Object": {
+      "description": "JavaScript Object",
+      "type": "class"
+    },
+    "Array": {
+      "description": "JavaScript Array",
+      "type": "class"
+    },
+    "String": {
+      "description": "JavaScript String",
+      "type": "class"
+    },
+    "Number": {
+      "description": "JavaScript Number",
+      "type": "class"
+    },
+    "Boolean": {
+      "description": "JavaScript Boolean",
+      "type": "class"
+    },
+    "Math": {
+      "description": "Mathematical functions",
+      "type": "object"
+    },
+    "Date": {
+      "description": "Date and time",
+      "type": "class"
+    },
+    "RegExp": {
+      "description": "Regular expressions",
+      "type": "class"
+    },
+    "Error": {
+      "description": "Error object",
+      "type": "class"
+    },
+    "ArrayBuffer": {
+      "description": "Binary data buffer",
+      "type": "class"
+    },
+    "Uint8Array": {
+      "description": "Typed array",
+      "type": "class"
+    },
+    "globalThis": {
+      "description": "Global object reference",
+      "type": "object"
+    }
+  },
+  "unsupportedModules": {
+    "fs": "File system operations are not supported in standalone binaries",
+    "path": "Path operations are not supported in standalone binaries",
+    "process": "Process operations are not supported (except basic environment)",
+    "child_process": "Child process operations are not supported",
+    "http": "HTTP server is not supported (use fetch for HTTP client)",
+    "https": "HTTPS server is not supported (use fetch for HTTPS client)",
+    "net": "Network operations are not supported",
+    "os": "Operating system operations are not supported",
+    "crypto": "Node crypto module is not supported",
+    "stream": "Node streams are not supported",
+    "buffer": "Node Buffer is not supported (use ArrayBuffer/Uint8Array)",
+    "events": "Node EventEmitter is not supported",
+    "util": "Node util module is not supported",
+    "url": "Node URL module is not supported (use URL web API if needed)",
+    "querystring": "Node querystring module is not supported",
+    "zlib": "Compression is not supported",
+    "tls": "TLS/SSL operations are not supported",
+    "dns": "DNS operations are not supported",
+    "dgram": "UDP/datagram sockets are not supported",
+    "cluster": "Cluster operations are not supported",
+    "worker_threads": "Worker threads are not supported",
+    "perf_hooks": "Performance hooks are not supported",
+    "async_hooks": "Async hooks are not supported",
+    "inspector": "Inspector is not supported",
+    "readline": "Readline is not supported",
+    "repl": "REPL is not supported",
+    "vm": "VM module is not supported",
+    "v8": "V8 specific APIs are not supported",
+    "assert": "Node assert module is not supported"
+  },
+  "notes": [
+    "QuickJS provides ES2020 JavaScript support",
+    "Fetch API is powered by libcurl",
+    "Timers use system time with microsecond precision",
+    "Blob API supports text, arrayBuffer, and slice operations",
+    "No DOM APIs are available (this is not a browser environment)",
+    "No Node.js modules or file system access",
+    "Focus on pure computation and HTTP requests"
+  ]
+}

@@ -116,6 +116,14 @@ if [ ! -f "$TEMP_DIR/bundle.js" ]; then
     exit 1
 fi
 
+# Validate the bundle for unsupported features
+echo "🔍 Validating bundle for unsupported features..."
+if ! node "$SCRIPT_DIR/validate-bundle.js" "$TEMP_DIR/bundle.js"; then
+    echo ""
+    echo "💡 Tip: Check supported-features.json for a complete list of supported APIs"
+    exit 1
+fi
+
 # Build with our custom QuickJS + libcurl implementation
 echo "🔧 Building QuickJS binary with full fetch API..."
 cd quickjs

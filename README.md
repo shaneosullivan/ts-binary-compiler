@@ -99,13 +99,45 @@ bun tests/execTests.ts --help
 - **tests/comprehensive-fetch.test.ts** - Full fetch API test suite (13 tests)
 - **tests/timer.test.ts** - Timer function tests (5 tests)
 
+## Feature Validation
+
+The build process automatically validates your code to ensure it only uses supported features.
+
+### Supported Features
+
+See [supported-features.json](supported-features.json) for the complete list of supported APIs, including:
+
+- **Fetch API** - Full HTTP client (GET, POST, PUT, DELETE, etc.)
+- **Blob API** - Binary data handling
+- **Timers** - setTimeout, setInterval, clearTimeout, clearInterval
+- **Promises** - Full async/await support
+- **Standard JavaScript** - All ES2020 features, built-in objects (Array, Object, Math, JSON, etc.)
+
+### Unsupported Features
+
+The following Node.js modules are **not supported**:
+- File system operations (`fs`, `path`)
+- HTTP/HTTPS servers (`http`, `https`, `net`)
+- Process operations (`child_process`, `cluster`, `worker_threads`)
+- Node.js-specific APIs (`crypto`, `stream`, `buffer`, `events`, etc.)
+
+If your code uses unsupported features, the build will fail with a helpful error message suggesting alternatives.
+
+### Manual Validation
+
+You can manually validate a bundle:
+
+```bash
+node validate-bundle.js path/to/bundle.js
+```
+
 ## Project Structure
 
 ```
 .
 ├── build.sh                    # Build script
-├── example/
-│   └── main.ts                 # Simple example demonstrating features
+├── validate-bundle.js          # Bundle validator for unsupported features
+├── supported-features.json     # Complete list of supported APIs
 ├── lib/
 │   ├── fetch-wrapper.ts        # Fetch API wrapper for QuickJS
 │   └── quickjs.d.ts            # TypeScript definitions
@@ -113,6 +145,8 @@ bun tests/execTests.ts --help
 │   ├── blob.c                  # Blob implementation
 │   ├── blob.h                  # Blob header
 │   ├── fetch_full.c            # Full fetch implementation
+│   ├── fetch_async.c           # Async fetch implementation
+│   ├── fetch_async.h           # Async fetch header
 │   └── timers.c                # Timer implementation
 └── tests/
     ├── execTests.ts                 # Test runner with wildcard support

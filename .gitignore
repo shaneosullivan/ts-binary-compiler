@@ -22,6 +22,7 @@ quickjs/test_*bundle.c
 *.js
 !index.js
 !server.js
+!validate-bundle.js
 !nodeserver/**/*.js
 *.js.map
 *.d.ts
