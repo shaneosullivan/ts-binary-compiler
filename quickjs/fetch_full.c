@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "timers.h"
 #include "blob.h"
+#include "fetch_async.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -397,9 +398,12 @@ int main(int argc, char** argv) {
     // Initialize Blob class
     blob_init(ctx);
 
+    // Initialize async fetch system
+    fetch_async_init(ctx);
+
     // Add fetch and console to global object
     JSValue global = JS_GetGlobalObject(ctx);
-    JS_SetPropertyStr(ctx, global, "fetch", JS_NewCFunction(ctx, js_fetch, "fetch", 2));
+    JS_SetPropertyStr(ctx, global, "fetch", JS_NewCFunction(ctx, js_fetch_async, "fetch", 2));
     
     // Add setTimeout and clearTimeout functions
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_setTimeout, "setTimeout", 2));
@@ -429,16 +433,20 @@ int main(int argc, char** argv) {
     
     JS_FreeValue(ctx, result);
     
-    // Run timer event loop with job queue execution
-    while (timers_has_active()) {
+    // Run event loop with timers, fetch, and job queue execution
+    while (timers_has_active() || fetch_async_has_active()) {
+        // Execute timers
         timers_execute();
-        
+
+        // Process async fetch requests
+        fetch_async_process(ctx);
+
         // Execute ALL pending jobs (promises) - keep going until none are left
         JSContext* ctx_ptr = NULL;
         while (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx_ptr) > 0) {
             // Keep processing jobs until none are left
         }
-        
+
         // Check for any job execution errors
         if (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx_ptr) < 0) {
             JSValue exception = JS_GetException(ctx_ptr ? ctx_ptr : ctx);
@@ -447,8 +455,8 @@ int main(int argc, char** argv) {
             if (error) JS_FreeCString(ctx, error);
             JS_FreeValue(ctx, exception);
         }
-        
-        if (timers_has_active()) {
+
+        if (timers_has_active() || fetch_async_has_active()) {
             usleep(1000); // Sleep for 1ms to prevent busy waiting
         }
     }
@@ -461,10 +469,13 @@ int main(int argc, char** argv) {
     
     // Clean up any remaining timers
     timers_cleanup(ctx);
-    
+
+    // Clean up async fetch system
+    fetch_async_cleanup();
+
     // Run garbage collection before freeing context
     JS_RunGC(JS_GetRuntime(ctx));
-    
+
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
     curl_global_cleanup();

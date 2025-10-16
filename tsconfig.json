@@ -15,6 +15,6 @@
     "types": [],
     "typeRoots": ["./lib"]
   },
-  "include": ["*.ts", "example/*.ts", "lib/*.d.ts"],
+  "include": ["*.ts", "example/*.ts", "tests/*.ts", "lib/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

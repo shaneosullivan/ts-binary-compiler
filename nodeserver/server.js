@@ -82,7 +82,12 @@ app.get('/', (req, res) => {
             'POST /test/upload': 'File upload test',
             'GET /test/status/:code': 'Custom status code test',
             'GET /test/delay/:ms': 'Delayed response test',
-            'POST /test/validate': 'Comprehensive validation test'
+            'POST /test/validate': 'Comprehensive validation test',
+            'GET /test/blob/text': 'Returns text as blob',
+            'GET /test/blob/binary': 'Returns binary data as blob',
+            'GET /test/blob/image': 'Returns fake image data as blob',
+            'GET /test/blob/json': 'Returns JSON as blob',
+            'GET /test/blob/empty': 'Returns empty blob'
         }
     });
 });
@@ -261,10 +266,64 @@ app.post('/test/validate', (req, res) => {
     ));
 });
 
+// Blob endpoints - return binary data with proper content-type
+app.get('/test/blob/text', (req, res) => {
+    const text = 'Hello from blob endpoint! This is text data.';
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Length', Buffer.byteLength(text));
+    res.send(text);
+});
+
+app.get('/test/blob/binary', (req, res) => {
+    // Create binary data (sequence of bytes)
+    const buffer = Buffer.from([0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x42, 0x69, 0x6E, 0x61, 0x72, 0x79]); // "Hello Binary"
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+});
+
+app.get('/test/blob/image', (req, res) => {
+    // Create fake PNG header + some data (not a real image, just for testing)
+    const pngHeader = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]); // PNG signature
+    const fakeData = Buffer.from('fake image data');
+    const buffer = Buffer.concat([pngHeader, fakeData]);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+});
+
+app.get('/test/blob/json', (req, res) => {
+    const jsonData = JSON.stringify({ message: 'This is JSON as a blob', value: 42, nested: { key: 'value' } });
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Length', Buffer.byteLength(jsonData));
+    res.send(jsonData);
+});
+
+app.get('/test/blob/empty', (req, res) => {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', 0);
+    res.send('');
+});
+
+app.get('/test/blob/large', (req, res) => {
+    // Create a large binary blob (100KB)
+    const size = 100 * 1024; // 100KB
+    const buffer = Buffer.alloc(size);
+    // Fill with pattern for verification
+    for (let i = 0; i < size; i++) {
+        buffer[i] = i % 256;
+    }
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+});
+
 // Error simulation endpoint
 app.all('/test/error/:type', (req, res) => {
     const errorType = req.params.type;
-    
+
     switch (errorType) {
         case 'timeout':
             // Simulate timeout (no response)
