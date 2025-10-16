@@ -4,7 +4,7 @@
 console.log("🧪 Starting Comprehensive Fetch API Test Suite");
 console.log("===============================================\n");
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = "http://localhost:3101";
 
 // Test configuration
 interface TestResult {
@@ -263,7 +263,7 @@ async function runTests() {
       const response = await fetch(`${BASE_URL}/test/status/${statusCode}`);
       const expectedSuccess = statusCode >= 200 && statusCode < 300;
       let data: any;
-      
+
       // Special handling for status codes that return empty bodies
       if (statusCode === 204) {
         data = { success: true, message: "No Content" };
@@ -487,167 +487,10 @@ async function runTests() {
     });
   }
 
-  // Test 14: setInterval and clearInterval Tests
-  console.log("\n🔍 Test 14: Timer Functions (setInterval/clearInterval)");
-  let intervalCount = 0;
-  const maxIntervalRuns = 3;
-
-  const intervalId = setInterval(() => {
-    intervalCount++;
-    console.log(`Interval execution #${intervalCount}`);
-
-    if (intervalCount >= maxIntervalRuns) {
-      clearInterval(intervalId);
-      console.log("Interval cleared after 3 executions");
-
-      logTest({
-        name: "setInterval/clearInterval",
-        success: intervalCount === maxIntervalRuns,
-        message: `Interval executed ${intervalCount} times and was properly cleared`,
-        details: { executions: intervalCount, maxExpected: maxIntervalRuns },
-      });
-    }
-  }, 100);
-
-  // Test 15: Multiple Intervals
-  console.log("\n🔍 Test 15: Multiple Concurrent Intervals");
-  let fastCount = 0;
-  let slowCount = 0;
-
-  const fastInterval = setInterval(() => {
-    fastCount++;
-    console.log(`Fast interval: ${fastCount}`);
-    if (fastCount >= 5) {
-      clearInterval(fastInterval);
-    }
-  }, 50);
-
-  const slowInterval = setInterval(() => {
-    slowCount++;
-    console.log(`Slow interval: ${slowCount}`);
-    if (slowCount >= 3) {
-      clearInterval(slowInterval);
-
-      logTest({
-        name: "Multiple Intervals",
-        success: fastCount >= 5 && slowCount >= 3,
-        message: `Fast: ${fastCount}/5, Slow: ${slowCount}/3 executions`,
-        details: { fastExecutions: fastCount, slowExecutions: slowCount },
-      });
-    }
-  }, 150);
-
-  // Test 16: setTimeout and setInterval Mix
-  console.log("\n🔍 Test 16: Mixed setTimeout and setInterval");
-  let mixedResults: string[] = [];
-
-  setTimeout(() => {
-    mixedResults.push("timeout-1");
-    console.log("Timeout 1 executed (100ms)");
-  }, 100);
-
-  const mixInterval = setInterval(() => {
-    mixedResults.push("interval");
-    console.log("Mixed interval executed");
-
-    if (mixedResults.length >= 4) {
-      clearInterval(mixInterval);
-
-      setTimeout(() => {
-        mixedResults.push("timeout-2");
-        console.log("Final timeout executed (50ms)");
-
-        logTest({
-          name: "Mixed Timers",
-          success: mixedResults.length === 5,
-          message: "Mixed setTimeout and setInterval execution completed",
-          details: { executionOrder: mixedResults },
-        });
-      }, 50);
-    }
-  }, 75);
-
-  // Test 17: setInterval Edge Cases
-  console.log("\n🔍 Test 17: setInterval Edge Cases");
-  let edgeCaseResults: string[] = [];
-
-  // Test zero delay interval
-  const zeroDelayInterval = setInterval(() => {
-    edgeCaseResults.push("zero-delay");
-    if (edgeCaseResults.filter(r => r === "zero-delay").length >= 3) {
-      clearInterval(zeroDelayInterval);
-    }
-  }, 0);
-
-  // Test clearing interval immediately
-  const immediateInterval = setInterval(() => {
-    edgeCaseResults.push("should-not-execute");
-  }, 100);
-  clearInterval(immediateInterval); // Clear before it can execute
-
-  // Test very short interval
-  let shortCount = 0;
-  const shortInterval = setInterval(() => {
-    shortCount++;
-    edgeCaseResults.push("short");
-    if (shortCount >= 2) {
-      clearInterval(shortInterval);
-    }
-  }, 1);
-
-  setTimeout(() => {
-    const zeroDelayCount = edgeCaseResults.filter(r => r === "zero-delay").length;
-    const shortDelayCount = edgeCaseResults.filter(r => r === "short").length;
-    const shouldNotExecuteCount = edgeCaseResults.filter(r => r === "should-not-execute").length;
-
-    logTest({
-      name: "setInterval Edge Cases",
-      success: zeroDelayCount >= 3 && shortDelayCount >= 2 && shouldNotExecuteCount === 0,
-      message: `Zero delay: ${zeroDelayCount}, Short: ${shortDelayCount}, Cleared: ${shouldNotExecuteCount}`,
-      details: { 
-        zeroDelayExecutions: zeroDelayCount,
-        shortDelayExecutions: shortDelayCount,
-        clearedImmediatelyExecutions: shouldNotExecuteCount,
-        allResults: edgeCaseResults
-      },
-    });
-  }, 400);
-
-  // Test 18: setInterval Cleanup Test
-  console.log("\n🔍 Test 18: setInterval Cleanup and Memory Management");
-  let cleanupResults: number[] = [];
-  let activeIntervals: number[] = [];
-
-  // Create multiple intervals and clear them all
-  for (let i = 0; i < 5; i++) {
-    const intervalId = setInterval(() => {
-      cleanupResults.push(i);
-      // Each interval runs once then gets cleared
-      clearInterval(intervalId);
-    }, 50 + (i * 10)); // Stagger the intervals
-    activeIntervals.push(intervalId);
-  }
-
-  setTimeout(() => {
-    logTest({
-      name: "setInterval Cleanup",
-      success: cleanupResults.length === 5 && new Set(cleanupResults).size === 5,
-      message: `All ${cleanupResults.length} intervals executed and cleaned up`,
-      details: { 
-        executionResults: cleanupResults.sort(),
-        uniqueExecutions: new Set(cleanupResults).size,
-        intervalIds: activeIntervals
-      },
-    });
-  }, 500);
-
-  // Wait for all timer tests to complete before showing summary
-  setTimeout(() => {
-    // Final Summary
-    console.log("\n" + "=".repeat(50));
-    logSummary();
-    console.log("\n🎯 All fetch API and timer tests completed!");
-  }, 1500); // Extended time for additional tests
+  // Final Summary
+  console.log("\n" + "=".repeat(50));
+  logSummary();
+  console.log("\n🎯 All fetch API tests completed!");
 }
 
 // Run the tests

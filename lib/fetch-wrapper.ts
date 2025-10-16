@@ -62,11 +62,8 @@ const originalSyncFetch = (globalThis as any).fetch;
             return Promise.resolve(encoder.encode(text).buffer);
           },
           blob(): Promise<Blob> {
-            // QuickJS doesn't have Blob, return a minimal implementation
-            return Promise.resolve({
-              size: syncResponse.text().length,
-              type: "text/plain",
-            } as any);
+            // Call the native Blob implementation from the response
+            return Promise.resolve(syncResponse.blob());
           },
           formData(): Promise<FormData> {
             // QuickJS doesn't have FormData, throw an error

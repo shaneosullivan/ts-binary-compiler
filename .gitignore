@@ -126,3 +126,4 @@ build
 .last_modified_timestamp
 
 quickjs/generated
+tests/output

@@ -5,6 +5,7 @@
 #include <curl/curl.h>
 #include <unistd.h>
 #include "timers.h"
+#include "blob.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -108,7 +109,7 @@ static JSValue response_arrayBuffer(JSContext* ctx, JSValueConst this_val, int a
     (void)argc; (void)argv;
     JSValue responseData = JS_GetPropertyStr(ctx, this_val, "_data");
     if (JS_IsException(responseData)) return responseData;
-    
+
     const char* data = JS_ToCString(ctx, responseData);
     JSValue result = JS_UNDEFINED;
     if (data) {
@@ -117,10 +118,52 @@ static JSValue response_arrayBuffer(JSContext* ctx, JSValueConst this_val, int a
     } else {
         result = JS_NewArrayBuffer(ctx, NULL, 0, NULL, NULL, 0);
     }
-    
+
     if (data) JS_FreeCString(ctx, data);
     JS_FreeValue(ctx, responseData);
     return result;
+}
+
+static JSValue response_blob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    (void)argc; (void)argv;
+    JSValue responseData = JS_GetPropertyStr(ctx, this_val, "_data");
+    if (JS_IsException(responseData)) return responseData;
+
+    // Get content type from headers
+    JSValue headers_obj = JS_GetPropertyStr(ctx, this_val, "headers");
+    const char* content_type = "text/plain";
+    const char* content_type_allocated = NULL;
+
+    if (JS_IsObject(headers_obj)) {
+        JSValue content_type_val = JS_GetPropertyStr(ctx, headers_obj, "content-type");
+        if (!JS_IsUndefined(content_type_val)) {
+            content_type_allocated = JS_ToCString(ctx, content_type_val);
+            if (content_type_allocated) {
+                content_type = content_type_allocated;
+            }
+        }
+        JS_FreeValue(ctx, content_type_val);
+    }
+    JS_FreeValue(ctx, headers_obj);
+
+    const char* data = JS_ToCString(ctx, responseData);
+    JSValue blob = JS_UNDEFINED;
+
+    if (data) {
+        size_t len = strlen(data);
+        blob = blob_create(ctx, (const uint8_t*)data, len, content_type);
+        JS_FreeCString(ctx, data);
+    } else {
+        blob = blob_create(ctx, NULL, 0, content_type);
+    }
+
+    // Free content type if it was allocated
+    if (content_type_allocated) {
+        JS_FreeCString(ctx, content_type_allocated);
+    }
+
+    JS_FreeValue(ctx, responseData);
+    return blob;
 }
 
 // Console log implementation
@@ -289,6 +332,7 @@ static JSValue js_fetch(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     JS_SetPropertyStr(ctx, responseObj, "text", JS_NewCFunction(ctx, response_text, "text", 0));
     JS_SetPropertyStr(ctx, responseObj, "json", JS_NewCFunction(ctx, response_json, "json", 0));
     JS_SetPropertyStr(ctx, responseObj, "arrayBuffer", JS_NewCFunction(ctx, response_arrayBuffer, "arrayBuffer", 0));
+    JS_SetPropertyStr(ctx, responseObj, "blob", JS_NewCFunction(ctx, response_blob, "blob", 0));
     
     // Add response properties
     JS_SetPropertyStr(ctx, responseObj, "status", JS_NewInt32(ctx, response.status_code));
@@ -349,7 +393,10 @@ int main(int argc, char** argv) {
     
     // Initialize timer system
     timers_init();
-    
+
+    // Initialize Blob class
+    blob_init(ctx);
+
     // Add fetch and console to global object
     JSValue global = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global, "fetch", JS_NewCFunction(ctx, js_fetch, "fetch", 2));
