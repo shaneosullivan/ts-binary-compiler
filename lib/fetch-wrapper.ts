@@ -51,5 +51,54 @@ if (typeof originalNativeFetch !== "function") {
   return jsPromise;
 };
 
+// Fix Headers iterators - the C implementation returns arrays, but they need to be proper iterators
+// This wraps the native methods to return iterator objects with next()
+if (typeof Headers !== 'undefined') {
+  const HeadersProto = (Headers as any).prototype;
+
+  // Store original methods from C
+  const originalEntries = HeadersProto.entries;
+  const originalKeys = HeadersProto.keys;
+  const originalValues = HeadersProto.values;
+
+  // Helper to create an iterator from an array
+  function createIterator(array: any[]) {
+    let index = 0;
+    return {
+      next() {
+        if (index < array.length) {
+          return { value: array[index++], done: false };
+        } else {
+          return { value: undefined, done: true };
+        }
+      },
+      [Symbol.iterator]() {
+        return this;
+      }
+    };
+  }
+
+  // Override entries() to return proper iterator
+  HeadersProto.entries = function() {
+    const array = originalEntries.call(this);
+    return createIterator(array);
+  };
+
+  // Override keys() to return proper iterator
+  HeadersProto.keys = function() {
+    const array = originalKeys.call(this);
+    return createIterator(array);
+  };
+
+  // Override values() to return proper iterator
+  HeadersProto.values = function() {
+    const array = originalValues.call(this);
+    return createIterator(array);
+  };
+
+  // Symbol.iterator should use entries
+  HeadersProto[Symbol.iterator] = HeadersProto.entries;
+}
+
 // Export empty object to make this a module
 export {};
