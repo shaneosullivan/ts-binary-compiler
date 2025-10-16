@@ -429,7 +429,8 @@ int main(int argc, char** argv) {
     JS_FreeValue(ctx, global);
     
     // Execute bundled JS
-    JSValue result = JS_Eval(ctx, qjsc_bundle_string, strlen(qjsc_bundle_string), "<bundle>", JS_EVAL_TYPE_GLOBAL);
+    // Use qjsc_bundle_size which now accurately reflects the byte array size
+    JSValue result = JS_Eval(ctx, qjsc_bundle_string, qjsc_bundle_size, "<bundle>", JS_EVAL_TYPE_GLOBAL);
     
     if (JS_IsException(result)) {
         JSValue exception = JS_GetException(ctx);

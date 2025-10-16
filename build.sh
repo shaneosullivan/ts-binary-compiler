@@ -152,14 +152,26 @@ cd "$SCRIPT_DIR/quickjs"
 # Create bundle from main.ts
 echo "📋 Creating JavaScript bundle..."
 mkdir -p "$TEMP_DIR/generated"
-# Escape backslashes first (\ -> \\), then escape double quotes (" -> \")
-BUNDLE_CONTENT=$(cat "$TEMP_DIR/bundle.js" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\n')
-cat > "$TEMP_DIR/generated/main_bundle.c" << EOF
-#include <stdint.h>
 
-const char* qjsc_bundle_string = "${BUNDLE_CONTENT}";
-const uint32_t qjsc_bundle_size = $(wc -c < "$TEMP_DIR/bundle.js" | tr -d ' ');
-EOF
+# Convert JavaScript bundle to C byte array (no escaping issues!)
+# This approach embeds the raw bytes, avoiding all string literal escaping confusion
+{
+    echo '#include <stdint.h>'
+    echo ''
+    echo '// JavaScript bundle as byte array'
+    echo 'const uint8_t qjsc_bundle_data[] = {'
+
+    # Convert to comma-separated hex bytes: 0x41, 0x42, ...
+    # Using xxd for cleaner output, 12 bytes per line
+    xxd -i < "$TEMP_DIR/bundle.js" | grep -v 'unsigned' | sed 's/^  //'
+
+    echo '};'
+    echo ''
+    echo "const uint32_t qjsc_bundle_size = sizeof(qjsc_bundle_data);"
+    echo ''
+    echo '// Null-terminated string pointer for convenience'
+    echo 'const char* qjsc_bundle_string = (const char*)qjsc_bundle_data;'
+} > "$TEMP_DIR/generated/main_bundle.c"
 
 # Build the binary
 echo "⚙️  Compiling QuickJS + libcurl binary..."
