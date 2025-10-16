@@ -23,7 +23,16 @@ if (typeof originalNativeFetch !== "function") {
   input: string | Request,
   init?: RequestInit
 ): Promise<Response> {
-  const url = typeof input === "string" ? input : input.url;
+  // Handle different input types: string, Request object, or URL object
+  let url: string;
+  if (typeof input === "string") {
+    url = input;
+  } else if (input && typeof input === "object") {
+    // Check if it's a Request object or URL object
+    url = input.url || (input as any).href || String(input);
+  } else {
+    url = String(input);
+  }
   const options =
     typeof input === "string"
       ? init
@@ -50,6 +59,39 @@ if (typeof originalNativeFetch !== "function") {
 
   return jsPromise;
 };
+
+// Stub implementation of AbortController and AbortSignal
+// These are used by many SDKs for canceling requests
+if (typeof AbortController === 'undefined') {
+  class AbortSignal {
+    aborted = false;
+    reason: any = undefined;
+
+    addEventListener(_type: string, _listener: any) {}
+    removeEventListener(_type: string, _listener: any) {}
+    dispatchEvent(_event: any): boolean { return true; }
+  }
+
+  (globalThis as any).AbortSignal = AbortSignal;
+
+  class AbortController {
+    signal: AbortSignal;
+
+    constructor() {
+      this.signal = new AbortSignal();
+    }
+
+    abort(_reason?: any) {
+      // Stub - doesn't actually abort anything
+      this.signal.aborted = true;
+      if (_reason !== undefined) {
+        this.signal.reason = _reason;
+      }
+    }
+  }
+
+  (globalThis as any).AbortController = AbortController;
+}
 
 // Fix Headers iterators - the C implementation returns arrays, but they need to be proper iterators
 // This wraps the native methods to return iterator objects with next()
