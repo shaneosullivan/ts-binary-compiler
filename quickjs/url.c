@@ -15,6 +15,9 @@ static JSValue headers_get(JSContext* ctx, JSValueConst this_val, int argc, JSVa
 static JSValue headers_has(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue headers_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue headers_delete(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_entries(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_keys(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+static JSValue headers_values(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 
 // URL parser state
 typedef struct {
@@ -692,6 +695,97 @@ static JSValue headers_delete(JSContext* ctx, JSValueConst this_val, int argc, J
     return JS_UNDEFINED;
 }
 
+// Headers.prototype.entries() - returns array of [key, value] pairs
+static JSValue headers_entries(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    (void)argc; (void)argv;
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    // Get all property names from the headers map
+    JSPropertyEnum* props;
+    uint32_t prop_count;
+    JSValue result = JS_NewArray(ctx);
+
+    if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_map, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JSValue key = JS_AtomToString(ctx, props[i].atom);
+            JSValue val = JS_GetProperty(ctx, headers_map, props[i].atom);
+
+            // Create [key, value] pair
+            JSValue pair = JS_NewArray(ctx);
+            JS_SetPropertyUint32(ctx, pair, 0, key);
+            JS_SetPropertyUint32(ctx, pair, 1, val);
+
+            JS_SetPropertyUint32(ctx, result, i, pair);
+        }
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JS_FreeAtom(ctx, props[i].atom);
+        }
+        js_free(ctx, props);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return result;
+}
+
+// Headers.prototype.keys() - returns array of header names
+static JSValue headers_keys(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    (void)argc; (void)argv;
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    // Get all property names from the headers map
+    JSPropertyEnum* props;
+    uint32_t prop_count;
+    JSValue result = JS_NewArray(ctx);
+
+    if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_map, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JSValue key = JS_AtomToString(ctx, props[i].atom);
+            JS_SetPropertyUint32(ctx, result, i, key);
+        }
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JS_FreeAtom(ctx, props[i].atom);
+        }
+        js_free(ctx, props);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return result;
+}
+
+// Headers.prototype.values() - returns array of header values
+static JSValue headers_values(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    (void)argc; (void)argv;
+
+    JSValue headers_map = JS_GetPropertyStr(ctx, this_val, "__headers__");
+    if (JS_IsException(headers_map)) return headers_map;
+
+    // Get all property names from the headers map
+    JSPropertyEnum* props;
+    uint32_t prop_count;
+    JSValue result = JS_NewArray(ctx);
+
+    if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_map, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JSValue val = JS_GetProperty(ctx, headers_map, props[i].atom);
+            JS_SetPropertyUint32(ctx, result, i, val);
+        }
+
+        for (uint32_t i = 0; i < prop_count; i++) {
+            JS_FreeAtom(ctx, props[i].atom);
+        }
+        js_free(ctx, props);
+    }
+
+    JS_FreeValue(ctx, headers_map);
+    return result;
+}
+
 // Initialize URL and URLSearchParams APIs
 void init_url_api(JSContext* ctx, JSValue global) {
     // Create URL constructor
@@ -719,6 +813,9 @@ void init_url_api(JSContext* ctx, JSValue global) {
     JS_SetPropertyStr(ctx, headers_proto, "has", JS_NewCFunction(ctx, headers_has, "has", 1));
     JS_SetPropertyStr(ctx, headers_proto, "set", JS_NewCFunction(ctx, headers_set, "set", 2));
     JS_SetPropertyStr(ctx, headers_proto, "delete", JS_NewCFunction(ctx, headers_delete, "delete", 1));
+    JS_SetPropertyStr(ctx, headers_proto, "entries", JS_NewCFunction(ctx, headers_entries, "entries", 0));
+    JS_SetPropertyStr(ctx, headers_proto, "keys", JS_NewCFunction(ctx, headers_keys, "keys", 0));
+    JS_SetPropertyStr(ctx, headers_proto, "values", JS_NewCFunction(ctx, headers_values, "values", 0));
 
     JS_SetPropertyStr(ctx, headers_ctor, "prototype", headers_proto);
     JS_SetPropertyStr(ctx, global, "Headers", headers_ctor);
