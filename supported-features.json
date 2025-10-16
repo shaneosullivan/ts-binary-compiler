@@ -135,6 +135,32 @@
       "type": "class",
       "methods": ["append", "get", "has", "set", "delete"],
       "notes": "Create and manipulate HTTP headers. Header names are case-insensitive."
+    },
+    "TextEncoder": {
+      "description": "Encode strings to UTF-8 bytes",
+      "type": "class",
+      "methods": ["encode"],
+      "properties": ["encoding"],
+      "notes": "Converts strings to Uint8Array of UTF-8 bytes"
+    },
+    "TextDecoder": {
+      "description": "Decode UTF-8 bytes to strings",
+      "type": "class",
+      "methods": ["decode"],
+      "properties": ["encoding"],
+      "notes": "Converts Uint8Array or ArrayBuffer to strings"
+    },
+    "atob": {
+      "description": "Decode base64 string to binary string",
+      "type": "function",
+      "returns": "string",
+      "notes": "Standard base64 decoding function"
+    },
+    "btoa": {
+      "description": "Encode binary string to base64",
+      "type": "function",
+      "returns": "string",
+      "notes": "Standard base64 encoding function"
     }
   },
   "unsupportedModules": {

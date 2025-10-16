@@ -244,7 +244,7 @@ mkdir -p "$TEMP_DIR/generated"
 # Build the binary
 echo "⚙️  Compiling QuickJS + libcurl binary..."
 gcc -O2 -Wall -Wextra -Wno-unused-parameter -I/opt/homebrew/include -o "$FULL_OUTPUT_PATH" \
-    fetch_full.c timers.c blob.c formdata.c fetch_async.c process.c url.c "$TEMP_DIR/generated/main_bundle.c" \
+    fetch_full.c timers.c blob.c formdata.c fetch_async.c process.c url.c encoding.c "$TEMP_DIR/generated/main_bundle.c" \
     -L/opt/homebrew/Cellar/quickjs/2025-09-13-2/lib/quickjs \
     -lquickjs -lcurl
 

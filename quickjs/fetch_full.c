@@ -10,6 +10,7 @@
 #include "fetch_async.h"
 #include "process.h"
 #include "url.h"
+#include "encoding.h"
 
 // Enhanced response structure with headers and status
 struct HttpResponse {
@@ -429,6 +430,9 @@ int main(int argc, char** argv) {
 
     // Initialize URL and URLSearchParams APIs
     init_url_api(ctx, global);
+
+    // Initialize TextEncoder, TextDecoder, atob, and btoa APIs
+    init_encoding_api(ctx, global);
 
     JS_FreeValue(ctx, global);
     
