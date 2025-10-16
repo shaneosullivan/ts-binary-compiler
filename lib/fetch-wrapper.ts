@@ -41,10 +41,8 @@ if (typeof originalNativeFetch !== "function") {
       const nativePromise = originalNativeFetch(url, options);
 
       // Chain the native promise to our JavaScript promise
-      // The native promise's .then() will be called, but we immediately
-      // resolve/reject our JS promise with the result
-      const nativeThen = nativePromise.then;
-      nativeThen.call(nativePromise, resolve, reject);
+      // Use a simple .then() call - don't try to be clever
+      nativePromise.then(resolve, reject);
     } catch (error) {
       reject(error);
     }

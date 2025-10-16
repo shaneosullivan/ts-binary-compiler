@@ -503,7 +503,10 @@ static JSValue url_search_params_to_string(JSContext* ctx, JSValueConst this_val
 
 // Headers constructor
 static JSValue headers_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
-    JSValue obj = JS_NewObject(ctx);
+    // Create object with proper prototype chain
+    JSValue proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+    JSValue obj = JS_NewObjectProtoClass(ctx, proto, 0);
+    JS_FreeValue(ctx, proto);
 
     // Internal storage: object with header names as keys (lowercase)
     JSValue headers_map = JS_NewObject(ctx);
@@ -515,12 +518,7 @@ static JSValue headers_constructor(JSContext* ctx, JSValueConst new_target, int 
         // For now, just create empty
     }
 
-    // Add methods to instance
-    JS_SetPropertyStr(ctx, obj, "append", JS_NewCFunction(ctx, headers_append, "append", 2));
-    JS_SetPropertyStr(ctx, obj, "get", JS_NewCFunction(ctx, headers_get, "get", 1));
-    JS_SetPropertyStr(ctx, obj, "has", JS_NewCFunction(ctx, headers_has, "has", 1));
-    JS_SetPropertyStr(ctx, obj, "set", JS_NewCFunction(ctx, headers_set, "set", 2));
-    JS_SetPropertyStr(ctx, obj, "delete", JS_NewCFunction(ctx, headers_delete, "delete", 1));
+    // Methods are now on the prototype, not on each instance
 
     return obj;
 }
@@ -713,5 +711,15 @@ void init_url_api(JSContext* ctx, JSValue global) {
 
     // Create Headers constructor
     JSValue headers_ctor = JS_NewCFunction2(ctx, headers_constructor, "Headers", 1, JS_CFUNC_constructor, 0);
+    JSValue headers_proto = JS_NewObject(ctx);
+
+    // Add Headers prototype methods
+    JS_SetPropertyStr(ctx, headers_proto, "append", JS_NewCFunction(ctx, headers_append, "append", 2));
+    JS_SetPropertyStr(ctx, headers_proto, "get", JS_NewCFunction(ctx, headers_get, "get", 1));
+    JS_SetPropertyStr(ctx, headers_proto, "has", JS_NewCFunction(ctx, headers_has, "has", 1));
+    JS_SetPropertyStr(ctx, headers_proto, "set", JS_NewCFunction(ctx, headers_set, "set", 2));
+    JS_SetPropertyStr(ctx, headers_proto, "delete", JS_NewCFunction(ctx, headers_delete, "delete", 1));
+
+    JS_SetPropertyStr(ctx, headers_ctor, "prototype", headers_proto);
     JS_SetPropertyStr(ctx, global, "Headers", headers_ctor);
 }
