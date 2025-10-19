@@ -176,14 +176,14 @@ $ESBUILD_BIN "$SCRIPT_DIR/lib/streams-polyfill.js" --bundle --format=esm --targe
 echo "🔗 Preparing fetch wrapper..."
 $ESBUILD_BIN "$SCRIPT_DIR/lib/fetch-wrapper.ts" --format=esm --outfile="$TEMP_DIR/fetch-wrapper.js"
 
-# Prepend Promise polyfill, Streams polyfill, fetch wrapper, then the bundle
-# This ensures Promise and Streams are patched before any code runs
+# Prepend Promise polyfill, fetch wrapper, Streams polyfill, then the bundle
+# CRITICAL: fetch wrapper MUST load BEFORE streams polyfill to capture native fetch
 {
     cat "$TEMP_DIR/promise-polyfill-es5.js"
     echo ""
-    cat "$TEMP_DIR/streams-polyfill-es5.js"
-    echo ""
     cat "$TEMP_DIR/fetch-wrapper.js"
+    echo ""
+    cat "$TEMP_DIR/streams-polyfill-es5.js"
     echo ""
     cat "$TEMP_DIR/bundle-raw.js"
 } > "$TEMP_DIR/bundle.js"

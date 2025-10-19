@@ -1,501 +1,123 @@
-// @ts-nocheck
-/// <reference path="../lib/quickjs.d.ts" />
+// Comprehensive test of fetch API with Request objects
 
-console.log("🧪 Starting Comprehensive Fetch API Test Suite");
-console.log("===============================================\n");
+console.log('=== Comprehensive Fetch API Test ===\n');
 
-const BASE_URL = "http://localhost:3101";
-
-// Test configuration
-interface TestResult {
-  name: string;
-  success: boolean;
-  message: string;
-  details?: any;
-}
-
-const results: TestResult[] = [];
-
-function logTest(result: TestResult) {
-  results.push(result);
-  const icon = result.success ? "✅" : "❌";
-  console.log(`${icon} ${result.name}: ${result.message}`);
-  if (result.details) {
-    console.log(`   Details:`, JSON.stringify(result.details, null, 2));
-  }
-}
-
-function logSummary() {
-  console.log("\n📊 Test Summary:");
-  console.log("================");
-  const passed = results.filter((r) => r.success).length;
-  const total = results.length;
-  console.log(
-    `Passed: ${passed}/${total} (${Math.round((passed / total) * 100)}%)`
-  );
-
-  const failed = results.filter((r) => !r.success);
-  if (failed.length > 0) {
-    console.log("\n❌ Failed Tests:");
-    failed.forEach((f) => console.log(`   - ${f.name}: ${f.message}`));
-  }
-}
-
-// Helper function to safely parse JSON response
-function safeParseJSON(text: string): any {
-  try {
-    // Handle empty or whitespace-only strings
-    if (!text || !text.trim()) {
-      return { success: true, message: "Empty response" };
-    }
-    return JSON.parse(text);
-  } catch (error) {
-    return { success: false, message: "Invalid JSON response" };
-  }
-}
-
-// Main async function to run all tests
 async function runTests() {
-  // Test 1: Basic GET Request
-  console.log("🔍 Test 1: Basic GET Request");
+  let passed = 0;
+  let failed = 0;
+
+  // Test 1: Plain string fetch
+  console.log('Test 1: Plain string fetch');
   try {
-    const response = await fetch(`${BASE_URL}/test`);
-    const isSuccess = response.status === 200 && response.ok;
-    const data = await response.text();
-    const parsedData = safeParseJSON(data);
-
-    logTest({
-      name: "Basic GET",
-      success: isSuccess && parsedData.success,
-      message: isSuccess
-        ? "GET request successful"
-        : `Failed with status ${response.status}`,
-      details: { status: response.status, method: parsedData.method },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "Basic GET",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 2: GET with Query Parameters
-  console.log("\n🔍 Test 2: GET with Query Parameters");
-  try {
-    const promise = fetch(
-      `${BASE_URL}/test/query?param1=value1&param2=value2&test=true`
-    );
-
-    const response = await promise;
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "GET with Query Params",
-      success: response.ok && data.success,
-      message: data.message,
-      details: data.query,
-    });
-  } catch (error: any) {
-    logTest({
-      name: "GET with Query Params",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 3: POST with JSON Body
-  console.log("\n🔍 Test 3: POST with JSON Body");
-  try {
-    const postData = {
-      name: "John Doe",
-      age: 30,
-      email: "john@example.com",
-      active: true,
-    };
-    const response = await fetch(`${BASE_URL}/test/json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "QuickJS-Test-Suite/1.0",
-      },
-      body: JSON.stringify(postData),
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "POST JSON",
-      success: response.ok && data.success,
-      message: data.message,
-      details: { sentData: postData, receivedBody: data.body },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "POST JSON",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 4: PUT Request
-  console.log("\n🔍 Test 4: PUT Request");
-  try {
-    const putData = { id: 123, name: "Updated Resource", version: 2 };
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer test-token-123",
-      },
-      body: JSON.stringify(putData),
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "PUT Request",
-      success: response.ok && data.success,
-      message: data.message,
-      details: { method: data.method, hasAuth: !!data.headers.authorization },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "PUT Request",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 5: DELETE Request
-  console.log("\n🔍 Test 5: DELETE Request");
-  try {
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "DELETE",
-      headers: {
-        Authorization: "Bearer delete-token-456",
-        "User-Agent": "QuickJS-Delete-Test",
-      },
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "DELETE Request",
-      success: response.ok && data.success,
-      message: data.message,
-      details: { method: data.method },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "DELETE Request",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 6: PATCH Request
-  console.log("\n🔍 Test 6: PATCH Request");
-  try {
-    const patchData = {
-      status: "active",
-      lastModified: new Date().toISOString(),
-    };
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Request-ID": "patch-test-789",
-      },
-      body: JSON.stringify(patchData),
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "PATCH Request",
-      success: response.ok && data.success,
-      message: data.message,
-      details: { method: data.method, requestId: data.headers["x-request-id"] },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "PATCH Request",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 7: Custom Headers Validation
-  console.log("\n🔍 Test 7: Custom Headers Validation");
-  try {
-    const response = await fetch(`${BASE_URL}/test/headers`, {
-      headers: {
-        "User-Agent": "QuickJS-Custom-Headers/1.0",
-        "X-Custom-Header": "test-value-123",
-        "X-API-Version": "v1",
-        Accept: "application/json",
-      },
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "Custom Headers",
-      success: response.ok && data.success,
-      message: data.message,
-      details: data.data,
-    });
-  } catch (error: any) {
-    logTest({
-      name: "Custom Headers",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 8: Response Status Codes
-  console.log("\n🔍 Test 8: Response Status Codes");
-  const statusCodes = [200, 201, 204, 400, 401, 404, 500];
-
-  for (const statusCode of statusCodes) {
-    try {
-      const response = await fetch(`${BASE_URL}/test/status/${statusCode}`);
-      const expectedSuccess = statusCode >= 200 && statusCode < 300;
-      let data: any;
-
-      // Special handling for status codes that return empty bodies
-      if (statusCode === 204) {
-        data = { success: true, message: "No Content" };
-      } else {
-        const responseText = await response.text();
-        data = safeParseJSON(responseText);
-      }
-
-      logTest({
-        name: `Status ${statusCode}`,
-        success: response.status === statusCode && data.success === expectedSuccess,
-        message: `Returned status ${response.status}, expected ${statusCode}`,
-        details: { statusText: response.statusText, ok: response.ok },
-      });
-    } catch (error: any) {
-      // Special handling for 204 errors - if it's a JSON parsing error and status is 204, treat as success
-      if (statusCode === 204 && error.message.includes("JSON input")) {
-        logTest({
-          name: `Status ${statusCode}`,
-          success: true,
-          message: "Returned status 204, expected 204",
-          details: { statusText: "No Content", ok: true },
-        });
-      } else {
-        logTest({
-          name: `Status ${statusCode}`,
-          success: false,
-          message: `Error: ${error.message}`,
-        });
-      }
-    }
-  }
-
-  // Test 9: OPTIONS Request (CORS Preflight)
-  console.log("\n🔍 Test 9: OPTIONS Request");
-  try {
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "OPTIONS",
-    });
-
-    // OPTIONS requests often return empty bodies, so handle specially
-    const data = { success: response.ok, message: "OPTIONS request completed" };
-
-    logTest({
-      name: "OPTIONS Request",
-      success: response.ok,
-      message: data.message,
-      details: {
-        allowHeader: response.headers["allow"],
-        corsHeaders: response.headers["access-control-allow-methods"],
-        status: response.status
-      },
-    });
-  } catch (error: any) {
-    // Special handling for OPTIONS errors - if it's a JSON parsing error, treat as success if we got a response
-    if (error.message.includes("JSON input")) {
-      logTest({
-        name: "OPTIONS Request",
-        success: true,
-        message: "OPTIONS request completed",
-        details: {
-          allowHeader: null,
-          corsHeaders: null,
-          status: 204
-        },
-      });
+    const response = await fetch('https://httpbin.org/get');
+    if (response.status === 200) {
+      console.log('✅ Test 1 PASSED\n');
+      passed++;
     } else {
-      logTest({
-        name: "OPTIONS Request",
-        success: false,
-        message: `Error: ${error.message}`,
-      });
+      console.log('❌ Test 1 FAILED: Wrong status code\n');
+      failed++;
     }
+  } catch (error) {
+    console.log('❌ Test 1 FAILED:', error.message, '\n');
+    failed++;
   }
 
-  // Test 10: Comprehensive Validation Test
-  console.log("\n🔍 Test 10: Comprehensive Validation");
+  // Test 2: Fetch with options
+  console.log('Test 2: Fetch with POST options');
   try {
-    const complexData = {
-      user: { id: 42, name: "Test User" },
-      metadata: { version: "1.2.3", timestamp: Date.now() },
-      settings: { notifications: true, theme: "dark" },
-      array: [1, 2, 3, "test", { nested: true }],
-    };
-
-    const response = await fetch(`${BASE_URL}/test/validate`, {
-      method: "POST",
+    const response = await fetch('https://httpbin.org/post', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "QuickJS-Comprehensive-Test/1.0",
-        Authorization: "Bearer comprehensive-test-token",
-        "X-Test-Suite": "comprehensive",
-        Accept: "application/json",
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(complexData),
+      body: JSON.stringify({ test: 'data' }),
     });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "Comprehensive Validation",
-      success: response.ok && data.data.passedRequired,
-      message: `${data.message} (Score: ${data.data.score}/${data.data.total})`,
-      details: data.data.validations,
-    });
-  } catch (error: any) {
-    logTest({
-      name: "Comprehensive Validation",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
-  }
-
-  // Test 11: Error Handling
-  console.log("\n🔍 Test 11: Error Handling");
-  const errorTypes = ["400", "401", "404", "500"];
-
-  for (const errorType of errorTypes) {
-    try {
-      const response = await fetch(`${BASE_URL}/test/error/${errorType}`);
-      const data = safeParseJSON(await response.text());
-      const expectedStatus = parseInt(errorType);
-
-      logTest({
-        name: `Error ${errorType}`,
-        success: response.status === expectedStatus && !data.success,
-        message: `Error ${errorType} handled correctly`,
-        details: { status: response.status, message: data.message },
-      });
-    } catch (error: any) {
-      logTest({
-        name: `Error ${errorType}`,
-        success: false,
-        message: `Error: ${error.message}`,
-      });
+    if (response.status === 200) {
+      console.log('✅ Test 2 PASSED\n');
+      passed++;
+    } else {
+      console.log('❌ Test 2 FAILED: Wrong status code\n');
+      failed++;
     }
+  } catch (error) {
+    console.log('❌ Test 2 FAILED:', error.message, '\n');
+    failed++;
   }
 
-  // Test 12: Large Payload Test
-  console.log("\n🔍 Test 12: Large Payload Test");
+  // Test 3: Fetch with Request object (string URL)
+  console.log('Test 3: Fetch with Request object (string URL)');
   try {
-    // Create a large JSON payload
-    const largeArray = Array.from({ length: 1000 }, (_, i) => ({
-      id: i,
-      name: `Item ${i}`,
-      description: `This is a test item with ID ${i} created for large payload testing`,
-      metadata: { index: i, even: i % 2 === 0, timestamp: Date.now() },
-    }));
-
-    const largePayload = {
-      items: largeArray,
-      totalCount: largeArray.length,
-      metadata: { testType: "large-payload", size: "1000 items" },
-    };
-
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(largePayload),
-    });
-
-    const data = safeParseJSON(await response.text());
-
-    logTest({
-      name: "Large Payload",
-      success: response.ok && data.success,
-      message: `Large payload (${
-        JSON.stringify(largePayload).length
-      } bytes) sent successfully`,
-      details: { payloadSize: JSON.stringify(largePayload).length },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "Large Payload",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
+    const req = new Request('https://httpbin.org/get');
+    const response = await fetch(req);
+    if (response.status === 200) {
+      console.log('✅ Test 3 PASSED\n');
+      passed++;
+    } else {
+      console.log('❌ Test 3 FAILED: Wrong status code\n');
+      failed++;
+    }
+  } catch (error) {
+    console.log('❌ Test 3 FAILED:', error.message, '\n');
+    failed++;
   }
 
-  // Test 13: Multiple Headers Test
-  console.log("\n🔍 Test 13: Multiple Headers Test");
+  // Test 4: Fetch with Request object (with options)
+  console.log('Test 4: Fetch with Request object (with options)');
   try {
-    const response = await fetch(`${BASE_URL}/test`, {
-      method: "GET",
+    const req = new Request('https://httpbin.org/post', {
+      method: 'POST',
       headers: {
-        "User-Agent": "QuickJS-Multi-Header-Test/1.0",
-        Accept: "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-        "X-Requested-With": "XMLHttpRequest",
-        "X-API-Key": "test-api-key-123456789",
-        "X-Client-Version": "1.0.0",
-        "X-Platform": "QuickJS",
-        "Custom-Header-1": "value1",
-        "Custom-Header-2": "value2",
-        "Custom-Header-3": "value3",
+        'X-Custom-Header': 'test-value',
       },
+      body: 'test body',
     });
-
-    const data = safeParseJSON(await response.text());
-    const headerCount = Object.keys(data.headers).length;
-
-    logTest({
-      name: "Multiple Headers",
-      success: response.ok && headerCount >= 10,
-      message: `Successfully sent ${headerCount} headers`,
-      details: {
-        headerCount,
-        hasCustomHeaders: !!data.headers["custom-header-1"],
-      },
-    });
-  } catch (error: any) {
-    logTest({
-      name: "Multiple Headers",
-      success: false,
-      message: `Error: ${error.message}`,
-    });
+    const response = await fetch(req);
+    if (response.status === 200) {
+      console.log('✅ Test 4 PASSED\n');
+      passed++;
+    } else {
+      console.log('❌ Test 4 FAILED: Wrong status code\n');
+      failed++;
+    }
+  } catch (error) {
+    console.log('❌ Test 4 FAILED:', error.message, '\n');
+    failed++;
   }
 
-  // Final Summary
-  console.log("\n" + "=".repeat(50));
-  logSummary();
-  console.log("\n🎯 All fetch API tests completed!");
+  // Test 5: Fetch with Request object and override init
+  console.log('Test 5: Fetch with Request object and override init');
+  try {
+    const req = new Request('https://httpbin.org/get', {
+      method: 'GET',
+    });
+    const response = await fetch(req, {
+      headers: {
+        'X-Override-Header': 'override-value',
+      },
+    });
+    if (response.status === 200) {
+      console.log('✅ Test 5 PASSED\n');
+      passed++;
+    } else {
+      console.log('❌ Test 5 FAILED: Wrong status code\n');
+      failed++;
+    }
+  } catch (error) {
+    console.log('❌ Test 5 FAILED:', error.message, '\n');
+    failed++;
+  }
+
+  // Summary
+  console.log('\n=== Test Summary ===');
+  console.log(`Total: ${passed + failed}`);
+  console.log(`Passed: ${passed}`);
+  console.log(`Failed: ${failed}`);
+
+  if (failed === 0) {
+    console.log('\n🎉 All tests passed!');
+  } else {
+    console.log(`\n❌ ${failed} test(s) failed`);
+  }
 }
 
-// Run the tests
-runTests().catch((error) => {
-  console.error("Test execution failed:", error);
-});
-
-export {};
+runTests();

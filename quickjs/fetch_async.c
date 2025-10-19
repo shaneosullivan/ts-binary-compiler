@@ -448,25 +448,15 @@ int fetch_async_has_active(void) {
 
 // JavaScript fetch function (returns Promise)
 JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-    fprintf(stderr, "[FETCH] js_fetch_async called with %d arguments\n", argc);
-    fflush(stderr);
-
     if (argc < 1) {
-        fprintf(stderr, "[FETCH] ERROR: No arguments provided\n");
-        fflush(stderr);
         return JS_ThrowTypeError(ctx, "fetch requires at least 1 argument");
     }
 
     // Get URL
     const char* url = JS_ToCString(ctx, argv[0]);
     if (!url) {
-        fprintf(stderr, "[FETCH] ERROR: Failed to convert URL to string\n");
-        fflush(stderr);
         return JS_EXCEPTION;
     }
-
-    fprintf(stderr, "[FETCH] URL: %s\n", url);
-    fflush(stderr);
 
     // Create fetch request
     FetchRequest* req = (FetchRequest*)calloc(1, sizeof(FetchRequest));
@@ -507,8 +497,6 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     // Handle options (method, headers, body)
     if (argc >= 2 && JS_IsObject(argv[1])) {
-        fprintf(stderr, "[FETCH] Processing options object\n");
-        fflush(stderr);
         JSValue options = argv[1];
 
         // Method
@@ -516,13 +504,45 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         if (!JS_IsUndefined(method_val)) {
             const char* method = JS_ToCString(ctx, method_val);
             if (method) {
-                fprintf(stderr, "[FETCH] Method: %s\n", method);
-                fflush(stderr);
                 curl_easy_setopt(req->curl_handle, CURLOPT_CUSTOMREQUEST, method);
                 JS_FreeCString(ctx, method);
             }
         }
         JS_FreeValue(ctx, method_val);
+
+        // Redirect (controls whether to follow redirects)
+        JSValue redirect_val = JS_GetPropertyStr(ctx, options, "redirect");
+        if (!JS_IsUndefined(redirect_val)) {
+            const char* redirect = JS_ToCString(ctx, redirect_val);
+            if (redirect) {
+                if (strcmp(redirect, "follow") == 0) {
+                    curl_easy_setopt(req->curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+                } else if (strcmp(redirect, "manual") == 0 || strcmp(redirect, "error") == 0) {
+                    curl_easy_setopt(req->curl_handle, CURLOPT_FOLLOWLOCATION, 0L);
+                }
+                JS_FreeCString(ctx, redirect);
+            }
+        }
+        JS_FreeValue(ctx, redirect_val);
+
+        // Credentials (controls cookie/auth behavior)
+        JSValue credentials_val = JS_GetPropertyStr(ctx, options, "credentials");
+        if (!JS_IsUndefined(credentials_val)) {
+            const char* credentials = JS_ToCString(ctx, credentials_val);
+            if (credentials) {
+                if (strcmp(credentials, "include") == 0) {
+                    // Include cookies in cross-origin requests
+                    curl_easy_setopt(req->curl_handle, CURLOPT_COOKIEFILE, "");
+                } else if (strcmp(credentials, "same-origin") == 0 || strcmp(credentials, "omit") == 0) {
+                    // Default behavior (no special cookie handling)
+                }
+                JS_FreeCString(ctx, credentials);
+            }
+        }
+        JS_FreeValue(ctx, credentials_val);
+
+        // Note: mode, cache, referrer, integrity, signal are intentionally ignored
+        // They are valid Request properties but don't map directly to libcurl options
 
         // Headers
         JSValue headers_val = JS_GetPropertyStr(ctx, options, "headers");
@@ -531,30 +551,40 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
             fflush(stderr);
 
             struct curl_slist* headers = NULL;
+
+            // Check if this is a Headers object (has __headers__ property)
+            // If so, use the internal map; otherwise treat as plain object
+            JSValue internal_map = JS_GetPropertyStr(ctx, headers_val, "__headers__");
+            JSValue headers_source = JS_IsObject(internal_map) ? internal_map : headers_val;
+
             JSPropertyEnum* props;
             uint32_t prop_count;
-            if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_val, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
+            if (JS_GetOwnPropertyNames(ctx, &props, &prop_count, headers_source, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY) == 0) {
                 fprintf(stderr, "[FETCH] Found %u headers\n", prop_count);
                 fflush(stderr);
                 for (uint32_t i = 0; i < prop_count; i++) {
                     JSValue key = JS_AtomToString(ctx, props[i].atom);
-                    JSValue val = JS_GetProperty(ctx, headers_val, props[i].atom);
+                    JSValue val = JS_GetProperty(ctx, headers_source, props[i].atom);
 
-                    const char* key_str = JS_ToCString(ctx, key);
-                    const char* val_str = JS_ToCString(ctx, val);
+                    // Skip if value is not a string (e.g., methods on Headers object)
+                    if (JS_IsString(val)) {
+                        const char* key_str = JS_ToCString(ctx, key);
+                        const char* val_str = JS_ToCString(ctx, val);
 
-                    if (key_str && val_str) {
-                        fprintf(stderr, "[FETCH] Header: %s: %s\n", key_str, val_str);
-                        fflush(stderr);
+                        if (key_str && val_str) {
+                            fprintf(stderr, "[FETCH] Header: %s: %s\n", key_str, val_str);
+                            fflush(stderr);
 
-                        char* header = (char*)malloc(strlen(key_str) + strlen(val_str) + 3);
-                        sprintf(header, "%s: %s", key_str, val_str);
-                        headers = curl_slist_append(headers, header);
-                        free(header);
+                            char* header = (char*)malloc(strlen(key_str) + strlen(val_str) + 3);
+                            sprintf(header, "%s: %s", key_str, val_str);
+                            headers = curl_slist_append(headers, header);
+                            free(header);
+                        }
+
+                        JS_FreeCString(ctx, key_str);
+                        JS_FreeCString(ctx, val_str);
                     }
 
-                    JS_FreeCString(ctx, key_str);
-                    JS_FreeCString(ctx, val_str);
                     JS_FreeValue(ctx, key);
                     JS_FreeValue(ctx, val);
                 }
@@ -564,6 +594,8 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
             if (headers) {
                 curl_easy_setopt(req->curl_handle, CURLOPT_HTTPHEADER, headers);
             }
+
+            JS_FreeValue(ctx, internal_map);
         }
         JS_FreeValue(ctx, headers_val);
 
@@ -607,20 +639,94 @@ JSValue js_fetch_async(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         JS_FreeValue(ctx, body_val);
     }
 
-    // Create promise - JS_NewPromiseCapability returns an array [promise, resolve, reject]
-    fprintf(stderr, "[FETCH] Creating promise\n");
+    // Create promise manually by calling the Promise constructor
+    // NOTE: We can't use JS_NewPromiseCapability because core-js Promise polyfill breaks it
+    fprintf(stderr, "[FETCH] Creating promise manually\n");
     fflush(stderr);
 
-    JSValue resolving_funcs[2];
-    JSValue promise = JS_NewPromiseCapability(ctx, resolving_funcs);
+    // Get the global Promise constructor
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue promise_constructor = JS_GetPropertyStr(ctx, global, "Promise");
+    JS_FreeValue(ctx, global);
+
+    if (!JS_IsFunction(ctx, promise_constructor)) {
+        fprintf(stderr, "[FETCH] ERROR: Promise constructor not found!\n");
+        fflush(stderr);
+        JS_FreeValue(ctx, promise_constructor);
+        free(req->url);
+        free(req);
+        return JS_ThrowTypeError(ctx, "Promise constructor not available");
+    }
+
+    // Create a C function that will be called as the Promise executor
+    // We'll store the resolve/reject functions in a temporary global property
+    // This is a workaround since we can't easily pass req through the executor
+
+    // Store request pointer in a global property (temporary)
+    JSValue req_ptr = JS_NewInt64(ctx, (int64_t)(uintptr_t)req);
+    JSValue temp_global = JS_GetGlobalObject(ctx);
+    JS_SetPropertyStr(ctx, temp_global, "__temp_fetch_req__", req_ptr);
+    JS_FreeValue(ctx, temp_global);
+
+    // Create the executor function
+    const char* executor_code =
+        "(function(resolve, reject) {"
+        "  const global = globalThis || this;"
+        "  global.__temp_fetch_resolve__ = resolve;"
+        "  global.__temp_fetch_reject__ = reject;"
+        "})";
+
+    JSValue executor = JS_Eval(ctx, executor_code, strlen(executor_code), "<fetch_executor>", JS_EVAL_TYPE_GLOBAL);
+
+    if (JS_IsException(executor)) {
+        fprintf(stderr, "[FETCH] ERROR: Failed to create Promise executor!\n");
+        fflush(stderr);
+        JS_FreeValue(ctx, promise_constructor);
+        free(req->url);
+        free(req);
+        return executor;
+    }
+
+    // Call Promise constructor with the executor
+    JSValue args[1] = { executor };
+    JSValue promise = JS_CallConstructor(ctx, promise_constructor, 1, args);
+
+    JS_FreeValue(ctx, executor);
+    JS_FreeValue(ctx, promise_constructor);
+
+    if (JS_IsException(promise)) {
+        fprintf(stderr, "[FETCH] ERROR: Promise constructor threw an exception!\n");
+        fflush(stderr);
+        JSValue exception = JS_GetException(ctx);
+        const char* error_str = JS_ToCString(ctx, exception);
+        fprintf(stderr, "[FETCH] Exception: %s\n", error_str ? error_str : "(unknown)");
+        JS_FreeCString(ctx, error_str);
+        JS_FreeValue(ctx, exception);
+        free(req->url);
+        free(req);
+        return promise;
+    }
+
+    // Get the resolve and reject functions from the temp global
+    JSValue temp_global2 = JS_GetGlobalObject(ctx);
+    JSValue resolve_func = JS_GetPropertyStr(ctx, temp_global2, "__temp_fetch_resolve__");
+    JSValue reject_func = JS_GetPropertyStr(ctx, temp_global2, "__temp_fetch_reject__");
+
+    // Clean up temp properties
+    JS_DeleteProperty(ctx, temp_global2, JS_NewAtom(ctx, "__temp_fetch_resolve__"), 0);
+    JS_DeleteProperty(ctx, temp_global2, JS_NewAtom(ctx, "__temp_fetch_reject__"), 0);
+    JS_DeleteProperty(ctx, temp_global2, JS_NewAtom(ctx, "__temp_fetch_req__"), 0);
+    JS_FreeValue(ctx, temp_global2);
 
     // Store resolve and reject functions
-    req->resolve_func = JS_DupValue(ctx, resolving_funcs[0]);
-    req->reject_func = JS_DupValue(ctx, resolving_funcs[1]);
+    req->resolve_func = JS_DupValue(ctx, resolve_func);
+    req->reject_func = JS_DupValue(ctx, reject_func);
 
-    // Free the temporary array values
-    JS_FreeValue(ctx, resolving_funcs[0]);
-    JS_FreeValue(ctx, resolving_funcs[1]);
+    JS_FreeValue(ctx, resolve_func);
+    JS_FreeValue(ctx, reject_func);
+
+    fprintf(stderr, "[FETCH] Promise created successfully\n");
+    fflush(stderr);
 
     // Add to pending list
     req->next = pending_requests;

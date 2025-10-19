@@ -9,7 +9,8 @@
   "scripts": {
     "build": "./build.sh",
     "clean": "rm -f main.js main main.pkg",
-    "test": "bun tests/execTests.ts --"
+    "test": "bun tests/execTests.ts --",
+    "test-openai": "./build.sh tests/openai.test.js build/openai-test && build/openai-test openaikey=$OPENAI_KEY"
   },
   "devDependencies": {
     "@babel/cli": "^7.28.3",
@@ -26,10 +27,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@types/jest": "^30.0.0",
     "core-js": "^3.46.0",
-    "jest": "^30.2.0",
-    "node-fetch": "^3.3.2",
     "web-streams-polyfill": "^4.2.0"
   }
 }

@@ -1,75 +1,137 @@
 // Fetch API wrapper for QuickJS environment
-// The native fetch implementation now returns Promises directly with async response methods
-// This module only needs to handle Request object normalization
+//
+// IMPORTANT: This wrapper normalizes Request objects and provides compatibility shims.
+// It calls __internalFetch__ which is the native C implementation exposed by fetch_full.c
+//
+// Background: The core-js Promise polyfill breaks QuickJS's JS_NewPromiseCapability(),
+// so the C code was modified to create Promises manually using the JS Promise constructor.
+// This allows Promise subclassing (required by OpenAI SDK) while maintaining fetch compatibility.
 
 /// <reference path="./quickjs.d.ts" />
 
-// NOTE: Promise polyfill (core-js) is loaded before this file in build.sh
+const _global = (globalThis as any);
 
-// CRITICAL: Store the native fetch BEFORE overwriting it
-// The C code has already set globalThis.fetch by the time this module loads
-const originalNativeFetch = (globalThis as any).fetch;
-
-// Verify we captured the native function
-if (typeof originalNativeFetch !== "function") {
-  throw new Error(
-    "fetch-wrapper: Native fetch not found! The C runtime must initialize fetch before the bundle runs."
-  );
-}
-
-// Create a wrapper that normalizes Request objects and ensures Promises from JavaScript
-// This is critical because the native fetch returns QuickJS native Promises which don't support subclassing
-(globalThis as any).fetch = function (
+// Create a wrapper that normalizes Request objects
+_global.fetch = function (
   input: string | Request,
   init?: RequestInit
 ): Promise<Response> {
-  // Handle different input types: string, Request object, or URL object
+  // Handle different input types
   let url: string;
+  let options: RequestInit | undefined;
+
   if (typeof input === "string") {
     url = input;
+    options = init;
   } else if (input && typeof input === "object") {
-    // Check if it's a Request object or URL object
     url = input.url || (input as any).href || String(input);
+
+    if (input.method !== undefined) {
+      options = {
+        method: input.method,
+        headers: input.headers,
+        body: input.body,
+        redirect: input.redirect,
+        credentials: input.credentials,
+        ...init,
+      };
+    } else {
+      options = init;
+    }
   } else {
     url = String(input);
+    options = init;
   }
-  const options =
-    typeof input === "string"
-      ? init
-      : {
-          method: input.method,
-          headers: input.headers,
-          ...init,
-        };
 
-  // Create a JavaScript Promise that wraps the native fetch
-  // This ensures the Promise is created with the JavaScript Promise constructor (core-js)
-  // rather than QuickJS's native Promise which doesn't support subclassing
-  const jsPromise = new Promise<Response>((resolve, reject) => {
-    try {
-      const nativePromise = originalNativeFetch(url, options);
-
-      // Chain the native promise to our JavaScript promise
-      // Use a simple .then() call - don't try to be clever
-      nativePromise.then(resolve, reject);
-    } catch (error) {
-      reject(error);
-    }
-  });
-
-  return jsPromise;
+  // Call the C implementation
+  return options
+    ? _global.__internalFetch__(url, options)
+    : _global.__internalFetch__(url);
 };
 
+// Implement Request class
+if (typeof Request === "undefined") {
+  class Request {
+    url: string;
+    method: string;
+    headers: Headers;
+    body: any;
+    mode: string;
+    credentials: string;
+    cache: string;
+    redirect: string;
+    referrer: string;
+    integrity: string;
+    signal: AbortSignal | null;
+
+    constructor(input: string | Request, init?: RequestInit) {
+      if (typeof input === "string") {
+        this.url = input;
+      } else if (input instanceof Request) {
+        this.url = input.url;
+        this.method = input.method;
+        this.headers = new Headers(input.headers);
+        this.body = input.body;
+        this.mode = input.mode;
+        this.credentials = input.credentials;
+        this.cache = input.cache;
+        this.redirect = input.redirect;
+        this.referrer = input.referrer;
+        this.integrity = input.integrity;
+        this.signal = input.signal;
+      } else {
+        this.url = String(input);
+      }
+
+      if (init) {
+        if (init.method !== undefined) this.method = init.method;
+        if (init.headers !== undefined) {
+          this.headers =
+            init.headers instanceof Headers
+              ? init.headers
+              : new Headers(init.headers as any);
+        }
+        if (init.body !== undefined) this.body = init.body;
+        if (init.mode !== undefined) this.mode = init.mode;
+        if (init.credentials !== undefined) this.credentials = init.credentials;
+        if (init.cache !== undefined) this.cache = init.cache;
+        if (init.redirect !== undefined) this.redirect = init.redirect;
+        if (init.referrer !== undefined) this.referrer = init.referrer;
+        if (init.integrity !== undefined) this.integrity = init.integrity;
+        if (init.signal !== undefined) this.signal = init.signal as AbortSignal;
+      }
+
+      // Set defaults
+      if (!this.method) this.method = "GET";
+      if (!this.headers) this.headers = new Headers();
+      if (!this.mode) this.mode = "cors";
+      if (!this.credentials) this.credentials = "same-origin";
+      if (!this.cache) this.cache = "default";
+      if (!this.redirect) this.redirect = "follow";
+      if (!this.referrer) this.referrer = "about:client";
+      if (!this.integrity) this.integrity = "";
+      if (this.signal === undefined) this.signal = null;
+    }
+
+    clone(): Request {
+      return new Request(this);
+    }
+  }
+
+  (globalThis as any).Request = Request;
+}
+
 // Stub implementation of AbortController and AbortSignal
-// These are used by many SDKs for canceling requests
-if (typeof AbortController === 'undefined') {
+if (typeof AbortController === "undefined") {
   class AbortSignal {
     aborted = false;
     reason: any = undefined;
 
     addEventListener(_type: string, _listener: any) {}
     removeEventListener(_type: string, _listener: any) {}
-    dispatchEvent(_event: any): boolean { return true; }
+    dispatchEvent(_event: any): boolean {
+      return true;
+    }
   }
 
   (globalThis as any).AbortSignal = AbortSignal;
@@ -82,7 +144,6 @@ if (typeof AbortController === 'undefined') {
     }
 
     abort(_reason?: any) {
-      // Stub - doesn't actually abort anything
       this.signal.aborted = true;
       if (_reason !== undefined) {
         this.signal.reason = _reason;
@@ -93,17 +154,13 @@ if (typeof AbortController === 'undefined') {
   (globalThis as any).AbortController = AbortController;
 }
 
-// Fix Headers iterators - the C implementation returns arrays, but they need to be proper iterators
-// This wraps the native methods to return iterator objects with next()
-if (typeof Headers !== 'undefined') {
+// Fix Headers iterators
+if (typeof Headers !== "undefined") {
   const HeadersProto = (Headers as any).prototype;
-
-  // Store original methods from C
   const originalEntries = HeadersProto.entries;
   const originalKeys = HeadersProto.keys;
   const originalValues = HeadersProto.values;
 
-  // Helper to create an iterator from an array
   function createIterator(array: any[]) {
     let index = 0;
     return {
@@ -116,40 +173,34 @@ if (typeof Headers !== 'undefined') {
       },
       [Symbol.iterator]() {
         return this;
-      }
+      },
     };
   }
 
-  // Override entries() to return proper iterator
-  HeadersProto.entries = function() {
+  HeadersProto.entries = function () {
     const array = originalEntries.call(this);
     return createIterator(array);
   };
 
-  // Override keys() to return proper iterator
-  HeadersProto.keys = function() {
+  HeadersProto.keys = function () {
     const array = originalKeys.call(this);
     return createIterator(array);
   };
 
-  // Override values() to return proper iterator
-  HeadersProto.values = function() {
+  HeadersProto.values = function () {
     const array = originalValues.call(this);
     return createIterator(array);
   };
 
-  // Symbol.iterator should use entries
   HeadersProto[Symbol.iterator] = HeadersProto.entries;
 }
 
-// Add stubs for browser globals that web-streams-polyfill checks for
-// These prevent validation errors and runtime issues
-if (typeof document === 'undefined') {
+// Add stubs for browser globals
+if (typeof document === "undefined") {
   (globalThis as any).document = undefined;
 }
 
-if (typeof MessageChannel === 'undefined') {
-  // Minimal MessageChannel stub
+if (typeof MessageChannel === "undefined") {
   class MessageChannel {
     port1: any;
     port2: any;
@@ -162,9 +213,8 @@ if (typeof MessageChannel === 'undefined') {
   (globalThis as any).MessageChannel = MessageChannel;
 }
 
-if (typeof location === 'undefined') {
+if (typeof location === "undefined") {
   (globalThis as any).location = undefined;
 }
 
-// Export empty object to make this a module
 export {};

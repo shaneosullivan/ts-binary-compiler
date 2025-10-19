@@ -433,6 +433,11 @@ int main(int argc, char** argv) {
     // Add fetch and console to global object
     JSValue global = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global, "fetch", JS_NewCFunction(ctx, js_fetch_async, "fetch", 2));
+
+    // CRITICAL: Also expose the native fetch as __internalFetch__
+    // This allows JavaScript wrappers to call the C function even after module initialization
+    // (storing C function references in JS variables causes them to become uncallable)
+    JS_SetPropertyStr(ctx, global, "__internalFetch__", JS_NewCFunction(ctx, js_fetch_async, "__internalFetch__", 2));
     
     // Add setTimeout and clearTimeout functions
     JS_SetPropertyStr(ctx, global, "setTimeout", JS_NewCFunction(ctx, js_setTimeout, "setTimeout", 2));

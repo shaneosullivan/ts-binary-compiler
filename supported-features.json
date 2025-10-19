@@ -67,6 +67,13 @@
       "methods": ["text", "json", "arrayBuffer", "blob"],
       "properties": ["status", "statusText", "ok", "headers"]
     },
+    "Request": {
+      "description": "HTTP Request object",
+      "type": "class",
+      "methods": ["clone"],
+      "properties": ["url", "method", "headers", "body", "mode", "credentials", "cache", "redirect", "referrer", "integrity", "signal"],
+      "notes": "Create Request objects to pass to fetch(). Supports cloning and all standard fetch options."
+    },
     "JSON": {
       "description": "JSON parsing and stringification",
       "members": ["parse", "stringify"]
