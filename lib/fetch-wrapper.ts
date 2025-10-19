@@ -142,5 +142,29 @@ if (typeof Headers !== 'undefined') {
   HeadersProto[Symbol.iterator] = HeadersProto.entries;
 }
 
+// Add stubs for browser globals that web-streams-polyfill checks for
+// These prevent validation errors and runtime issues
+if (typeof document === 'undefined') {
+  (globalThis as any).document = undefined;
+}
+
+if (typeof MessageChannel === 'undefined') {
+  // Minimal MessageChannel stub
+  class MessageChannel {
+    port1: any;
+    port2: any;
+
+    constructor() {
+      this.port1 = { postMessage: () => {}, onmessage: null };
+      this.port2 = { postMessage: () => {}, onmessage: null };
+    }
+  }
+  (globalThis as any).MessageChannel = MessageChannel;
+}
+
+if (typeof location === 'undefined') {
+  (globalThis as any).location = undefined;
+}
+
 // Export empty object to make this a module
 export {};

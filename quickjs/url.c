@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 // Forward declarations
+static JSValue url_to_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue url_search_params_append(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue url_search_params_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
 static JSValue url_search_params_to_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
@@ -248,6 +249,13 @@ static URLComponents* parse_url(const char* url_string, const char* base_url) {
     return url;
 }
 
+// URL.prototype.toString() - returns the href
+static JSValue url_to_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    (void)argc; (void)argv;
+    JSValue href = JS_GetPropertyStr(ctx, this_val, "href");
+    return href;
+}
+
 // URL constructor: new URL(url, base)
 static JSValue url_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
     if (argc < 1) {
@@ -303,6 +311,9 @@ static JSValue url_constructor(JSContext* ctx, JSValueConst new_target, int argc
         snprintf(host, sizeof(host), "%s", url->hostname);
     }
     JS_SetPropertyStr(ctx, obj, "host", JS_NewString(ctx, host));
+
+    // Add toString method that returns href
+    JS_SetPropertyStr(ctx, obj, "toString", JS_NewCFunction(ctx, url_to_string, "toString", 0));
 
     free_url_components(url);
     return obj;

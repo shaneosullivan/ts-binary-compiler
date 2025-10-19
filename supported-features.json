@@ -174,6 +174,40 @@
       "type": "object",
       "methods": ["getRandomValues", "randomUUID"],
       "notes": "Provides cryptographically secure random values. Uses /dev/urandom when available, falls back to time-based PRNG. randomUUID generates RFC 4122 version 4 UUIDs."
+    },
+    "ReadableStream": {
+      "description": "WHATWG Streams API - ReadableStream",
+      "type": "class",
+      "methods": ["getReader", "pipeThrough", "pipeTo", "tee", "cancel"],
+      "notes": "Full WHATWG Streams API implementation via web-streams-polyfill"
+    },
+    "WritableStream": {
+      "description": "WHATWG Streams API - WritableStream",
+      "type": "class",
+      "methods": ["getWriter", "abort", "close"],
+      "notes": "Full WHATWG Streams API implementation via web-streams-polyfill"
+    },
+    "TransformStream": {
+      "description": "WHATWG Streams API - TransformStream",
+      "type": "class",
+      "properties": ["readable", "writable"],
+      "notes": "Full WHATWG Streams API implementation via web-streams-polyfill"
+    },
+    "MessageChannel": {
+      "description": "MessageChannel API (stub)",
+      "type": "class",
+      "properties": ["port1", "port2"],
+      "notes": "Minimal stub implementation for compatibility with web-streams-polyfill"
+    },
+    "document": {
+      "description": "Document object (undefined stub)",
+      "type": "undefined",
+      "notes": "Set to undefined for compatibility. DOM APIs are not available."
+    },
+    "location": {
+      "description": "Location object (undefined stub)",
+      "type": "undefined",
+      "notes": "Set to undefined for compatibility. Not a browser environment."
     }
   },
   "unsupportedModules": {
